@@ -103,24 +103,104 @@ function OverviewTab({ isOffice }) {
 
 // ========== PROJECTS TAB ==========
 function ProjectsTab({ isOffice }) {
-  const projects = isOffice ? [
+  const defaultOfficeProjects = [
     { name: 'Gulshan Heights', status: 'In Progress', progress: 72, budget: '৳85M', client: 'Ahmed Group', deadline: 'Dec 2026', color: '#3b82f6' },
     { name: 'Banani Tower', status: 'Planning', progress: 25, budget: '৳120M', client: 'Rahman Corp', deadline: 'Mar 2027', color: '#f59e0b' },
     { name: 'Dhanmondi Residencia', status: 'Completed', progress: 100, budget: '৳65M', client: 'Karim Ltd', deadline: 'Sep 2026', color: '#10b981' },
     { name: 'Uttara Commercial', status: 'In Progress', progress: 58, budget: '৳200M', client: 'BD Holdings', deadline: 'Jun 2027', color: '#3b82f6' },
     { name: 'Mirpur Plaza', status: 'On Hold', progress: 15, budget: '৳45M', client: 'Star Enterprise', deadline: 'TBD', color: '#ef4444' },
-  ] : [
+  ];
+
+  const defaultUserProjects = [
     { name: 'Portfolio Website', status: 'In Progress', progress: 80, budget: '—', client: 'Personal', deadline: 'May 2026', color: '#3b82f6' },
     { name: 'E-Commerce App', status: 'Planning', progress: 10, budget: '—', client: 'Freelance', deadline: 'Jul 2026', color: '#f59e0b' },
     { name: 'Blog Platform', status: 'Completed', progress: 100, budget: '—', client: 'Client A', deadline: 'Apr 2026', color: '#10b981' },
   ];
 
+  const [projects, setProjects] = useState(isOffice ? defaultOfficeProjects : defaultUserProjects);
+  const [showForm, setShowForm] = useState(false);
+  const [newProject, setNewProject] = useState({
+    name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: ''
+  });
+
+  const handleAddProject = (e) => {
+    e.preventDefault();
+    let color = '#f59e0b'; // Planning
+    if (newProject.status === 'In Progress') color = '#3b82f6';
+    if (newProject.status === 'Completed') color = '#10b981';
+    if (newProject.status === 'On Hold') color = '#ef4444';
+
+    const projectToAdd = { ...newProject, color, progress: Number(newProject.progress) };
+    if (!isOffice) {
+      projectToAdd.budget = '—';
+      projectToAdd.client = 'Personal';
+    }
+
+    setProjects([projectToAdd, ...projects]);
+    setShowForm(false);
+    setNewProject({ name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: '' });
+  };
+
   return (
     <>
       <div className="dash-page-header">
-        <h2>📁 {isOffice ? 'All Projects' : 'My Projects'}</h2>
-        <button className="dash-btn-primary">+ New Project</button>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          {isOffice ? 'All Projects' : 'My Projects'}
+        </h2>
+        <button className="dash-btn-primary" onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancel' : '+ New Project'}
+        </button>
       </div>
+
+      {showForm && (
+        <div className="dash-card" style={{ marginBottom: '1.5rem', border: '1px solid var(--accent)' }}>
+          <div className="dash-card-header"><h3>Add New Project</h3></div>
+          <form onSubmit={handleAddProject} className="auth-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Project Name</label>
+              <div className="input-wrapper"><input type="text" required value={newProject.name} onChange={e => setNewProject({ ...newProject, name: e.target.value })} /></div>
+            </div>
+            <div className="form-group">
+              <label>Deadline</label>
+              <div className="input-wrapper"><input type="date" required value={newProject.deadline} onChange={e => setNewProject({ ...newProject, deadline: e.target.value })} style={{ colorScheme: 'dark', width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }} /></div>
+            </div>
+            <div className="form-group">
+              <label>Status</label>
+              <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                <select value={newProject.status} onChange={e => setNewProject({ ...newProject, status: e.target.value })} style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}>
+                  <option value="Planning" style={{ background: '#0f1424', color: '#fff', padding: '10px' }}>Planning</option>
+                  <option value="In Progress" style={{ background: '#0f1424', color: '#fff', padding: '10px' }}>In Progress</option>
+                  <option value="Completed" style={{ background: '#0f1424', color: '#fff', padding: '10px' }}>Completed</option>
+                  <option value="On Hold" style={{ background: '#0f1424', color: '#fff', padding: '10px' }}>On Hold</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Progress (%)</label>
+              <div className="input-wrapper"><input type="number" min="0" max="100" required value={newProject.progress} onChange={e => setNewProject({ ...newProject, progress: e.target.value })} /></div>
+            </div>
+            {isOffice && (
+              <>
+                <div className="form-group">
+                  <label>Budget</label>
+                  <div className="input-wrapper"><input type="text" placeholder="e.g. ৳50M" required value={newProject.budget} onChange={e => setNewProject({ ...newProject, budget: e.target.value })} /></div>
+                </div>
+                <div className="form-group">
+                  <label>Client</label>
+                  <div className="input-wrapper"><input type="text" required value={newProject.client} onChange={e => setNewProject({ ...newProject, client: e.target.value })} /></div>
+                </div>
+              </>
+            )}
+            <div style={{ gridColumn: '1 / -1', marginTop: '1rem' }}>
+              <button type="submit" className="dash-btn-primary" style={{ width: '100%' }}>Save Project</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="projects-table dash-card">
         <table className="dash-table">
           <thead>

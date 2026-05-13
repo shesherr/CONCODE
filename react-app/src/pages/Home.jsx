@@ -38,7 +38,7 @@ function Home() {
     },
     {
       title: 'QUALITY',
-      description: 'We pride ourselves on the fact that we never compromise on quality or safety. Our finishing is one of the best..',
+      description: 'We pride ourselves on the fact that we never compromise on quality or safety. Our finishing is one of the best.',
       icon: '✨',
       gradient: 'linear-gradient(135deg, #8b5cf633, #8b5cf611)',
       borderGlow: '#8b5cf6'
