@@ -30,15 +30,15 @@ function Home() {
 
   const features = [
     {
-      title: 'Lightning Fast',
-      description: 'Built on Vite, experiencing lightning-fast HMR and optimized production builds that load in a blink.',
+      title: 'TRUST',
+      description: 'Concord has handed over more than 10,000 units and over 1200 projects..',
       icon: '⚡',
       gradient: 'linear-gradient(135deg, #f59e0b33, #f59e0b11)',
       borderGlow: '#f59e0b'
     },
     {
-      title: 'Modern Aesthetics',
-      description: 'Carefully crafted with glassmorphism, dynamic gradients, and smooth micro-interactions that delight users.',
+      title: 'QUALITY',
+      description: 'We pride ourselves on the fact that we never compromise on quality or safety. Our finishing is one of the best..',
       icon: '✨',
       gradient: 'linear-gradient(135deg, #8b5cf633, #8b5cf611)',
       borderGlow: '#8b5cf6'
@@ -67,7 +67,7 @@ function Home() {
       <section className="hero">
         <div className="hero-badge">
           <span className="badge-dot"></span>
-          <span>Now in Beta — Join the revolution</span>
+          {/* <span>Now in Beta — Join the revolution</span> */}
         </div>
         <h1>
           Code. Create. <br />
@@ -131,15 +131,15 @@ function Home() {
         </div>
         <div className="features">
           {features.map((feature, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="glass-card feature-card"
               onMouseEnter={() => setHoveredCard(index)}
               onMouseLeave={() => setHoveredCard(null)}
               style={{
                 '--card-glow': feature.borderGlow,
                 transform: hoveredCard === index ? 'translateY(-12px)' : 'translateY(0)',
-                boxShadow: hoveredCard === index 
+                boxShadow: hoveredCard === index
                   ? `0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px ${feature.borderGlow}22`
                   : 'var(--glass-shadow)',
                 borderColor: hoveredCard === index ? `${feature.borderGlow}44` : 'var(--glass-border)'
