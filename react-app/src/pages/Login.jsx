@@ -41,15 +41,52 @@ function Login() {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!formData.email) {
+      setError('Please enter your email address first to receive your new password.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.isRealEmail) {
+          alert("Success! A beautifully formatted email with your new password has been sent to your real inbox. Please check your email.");
+        } else {
+          alert("Test Mode: Since no real SMTP credentials were provided in .env, a test email has been generated. We will open it in a new tab for you to see.");
+          if (data.previewUrl) {
+            window.open(data.previewUrl, '_blank');
+          }
+        }
+      } else {
+        setError(data.message || 'Failed to send reset email');
+      }
+    } catch (err) {
+      setError('Server not connected. Please start the backend server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="auth-section">
       <div className="auth-container">
         <div className="auth-card glass-card">
           <div className="auth-header">
             <div className="auth-logo-wrapper">
-              <img 
-                src="https://concordrealestatebd.com/wp-content/themes/concord/assets/logo/blue_logo.svg" 
-                alt="Concord Logo" 
+              <img
+                src="https://concordrealestatebd.com/wp-content/themes/concord/assets/logo/blue_logo.svg"
+                alt="Concord Logo"
                 className="auth-logo-img"
               />
             </div>
@@ -110,7 +147,7 @@ function Login() {
                 <input type="checkbox" />
                 <span>Remember me</span>
               </label>
-              <a href="#" className="forgot-link">Forgot password?</a>
+              <a href="#" className="forgot-link" onClick={handleForgotPassword}>Forgot password?</a>
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={loading}>
