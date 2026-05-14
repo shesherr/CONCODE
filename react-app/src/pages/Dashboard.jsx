@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 
 // ========== OVERVIEW TAB ==========
 function OverviewTab({ isOffice }) {
@@ -9,7 +10,7 @@ function OverviewTab({ isOffice }) {
   useEffect(() => {
     const savedProjects = localStorage.getItem('concord_projects');
     if (savedProjects) setRealProjects(JSON.parse(savedProjects));
-    
+
     const savedMessages = localStorage.getItem('concord_messages');
     if (savedMessages) setRealMessages(JSON.parse(savedMessages));
   }, []);
@@ -18,7 +19,7 @@ function OverviewTab({ isOffice }) {
   const completedProjects = realProjects.filter(p => p.status === 'Completed').length;
   const inProgressProjects = realProjects.filter(p => p.status === 'In Progress').length;
   const pendingProjects = totalProjects - completedProjects - inProgressProjects;
-  
+
   const totalMessages = realMessages.length;
   const unreadMessages = realMessages.filter(m => m.unread).length;
 
@@ -189,19 +190,183 @@ function ProjectsTab({ isOffice }) {
   };
 
   const handleDownloadReport = (project) => {
-    const reportContent = `CONCORD REAL ESTATE - PROJECT REPORT\n=====================================\n\nProject Name : ${project.name}\nCurrent Status: ${project.status}\nProgress      : ${project.progress}%\nDeadline      : ${project.deadline}\n${project.budget ? `Budget        : ${project.budget}\n` : ''}${project.client ? `Client        : ${project.client}\n` : ''}\nGenerated on  : ${new Date().toLocaleString()}\n`;
+    // Real Concord Logo Base64 SVG
+    const logoSvgBase64 = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMy4wLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxOTcuMyA4My4zIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxOTcuMyA4My4zOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDp1cmwoI1NWR0lEXzFfKTt9DQoJLnN0MXtmaWxsOnVybCgjU1ZHSURfMl8pO30NCgkuc3Qye2ZpbGw6dXJsKCNTVkdJRF8zXyk7fQ0KPC9zdHlsZT4NCjxnPg0KCTxsaW5lYXJHcmFkaWVudCBpZD0iU1ZHSURfMV8iIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4MT0iOTguNjQ4OSIgeTE9IjUuODUyNSIgeDI9Ijk4LjY0ODkiIHkyPSI4MS4zMzE2Ij4NCgkJPHN0b3AgIG9mZnNldD0iMCIgc3R5bGU9InN0b3AtY29sb3I6IzAwNkVCOSIvPg0KCQk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojMkUzMTkyIi8+DQoJPC9saW5lYXJHcmFkaWVudD4NCgk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTYuMyw1N2MxLjMsMCwyLjUsMC4xLDMuNiwwLjVjMS4xLDAuMywyLDAuNywyLjYsMS4yYzAuNywwLjUsMSwwLjgsMS4xLDFjMC4xLDAuMiwwLjIsMS4zLDAuMiwzLjRoMS43DQoJCWMwLjEtMS43LDAuMi0zLjEsMC40LTQuMmMwLjEtMC43LDAuMy0xLjQsMC41LTIuMWwtMC4xLTAuM2MtMS42LTAuNi0zLjMtMS01LTEuM2MtMS43LTAuMy0zLjMtMC41LTUtMC41Yy01LjEsMC05LjEsMS4zLTEyLDMuOQ0KCQlDMS40LDYxLjMsMCw2NC42LDAsNjguN2MwLDIuOCwwLjYsNS40LDEuOSw3LjZjMS4zLDIuMiwzLjEsMy45LDUuNSw1LjFjMi40LDEuMiw1LjMsMS44LDguNywxLjhjMS44LDAsMy41LTAuMSw0LjktMC41DQoJCWMxLjQtMC4zLDIuOS0wLjksNC40LTEuN2MwLjMtMC42LDAuNi0xLjMsMC45LTJsLTAuNS0wLjVjLTEuNSwwLjgtMi44LDEuMi00LDEuNWMtMS4yLDAuMy0yLjUsMC40LTMuOSwwLjRjLTMuNiwwLTYuNC0xLjEtOC41LTMuMg0KCQljLTIuMy0yLjQtMy40LTUuNC0zLjQtOS4yYzAtMy41LDAuOS02LjIsMi44LTguMUMxMC43LDU4LDEzLjIsNTcsMTYuMyw1N3ogTTUwLDU5Yy0xLjktMS00LjQtMS41LTcuNC0xLjVjLTMuMSwwLTUuNywwLjUtNy43LDEuNg0KCQljLTIsMS0zLjUsMi41LTQuNyw0LjRjLTEuMSwxLjktMS43LDQuMy0xLjcsN2MwLDMuOSwxLjIsNywzLjUsOS4zYzIuMywyLjMsNS43LDMuNCwxMCwzLjRjMi45LDAsNS40LTAuNiw3LjQtMS43DQoJCWMyLTEuMSwzLjYtMi43LDQuOC00LjdjMS4xLTIsMS43LTQuNCwxLjctNy4yYzAtMi41LTAuNS00LjctMS42LTYuNUM1My4zLDYxLjQsNTEuOCw2MCw1MCw1OXogTTQ4LjMsNzguNg0KCQljLTEuNCwxLjgtMy4zLDIuNy01LjcsMi43Yy0xLjksMC0zLjQtMC40LTQuNy0xLjJjLTEuMi0wLjgtMi4xLTItMi45LTMuOGMtMC44LTEuOC0xLjItMy45LTEuMi02LjVjMC0zLjUsMC43LTYuMSwyLjEtNy45DQoJCWMxLjQtMS43LDMuNC0yLjUsNS45LTIuNWMyLjcsMCw0LjcsMC44LDYuMSwyLjVjMS42LDIsMi40LDQuOSwyLjQsOC43QzUwLjUsNzQuMiw0OS44LDc2LjksNDguMyw3OC42eiBNNzcuNSw1Ny45djEuNQ0KCQljMS40LDAuMSwyLjMsMC4yLDIuNSwwLjJjMC4yLDAsMC4zLDAuMiwwLjQsMC4zYzAuMSwwLjIsMC4yLDEsMC4zLDIuMWMwLDIsMCw0LjMsMCw3djdjLTEuNy0xLjgtMy43LTQtNi02LjgNCgkJYy0zLjUtNC4xLTYuNi03LjktOS4zLTExLjRjLTEuMywwLjEtMi40LDAuMS0zLjQsMC4xYy0wLjksMC0yLjMsMC00LjEtMC4xdjEuNWMxLjUsMC4xLDIuNCwwLjMsMi42LDAuNGMwLjIsMC4xLDAuMywwLjIsMC40LDAuNA0KCQljMC4xLDAuMywwLjIsMS41LDAuMiwzLjVsMCw3LjZjMCwxLjQsMCwzLjYtMC4xLDYuNWMwLDEuNy0wLjEsMi43LTAuMiwzYy0wLjEsMC4yLTAuMiwwLjMtMC40LDAuNGMtMC4yLDAuMi0xLjEsMC4zLTIuNSwwLjN2MS41DQoJCWMyLjItMC4xLDMuNy0wLjEsNC40LTAuMWMwLjgsMCwyLjIsMC4xLDQuMSwwLjF2LTEuNWMtMS41LTAuMS0yLjQtMC4yLTIuNi0wLjRjLTAuMi0wLjEtMC4yLTAuMS0wLjMtMC4zYy0wLjEtMC4zLTAuMi0xLjQtMC4zLTMuNA0KCQljMC0yLjctMC4xLTUtMC4xLTYuOXYtNi45YzEuMywxLjgsMy4xLDMuOSw1LjMsNi42YzQuMyw1LjEsOCw5LjMsMTEuMSwxMi43YzAuNiwwLjEsMS41LDAuMywyLjksMC41bDAuMi0wLjINCgkJYy0wLjEtMS45LTAuMS0zLjktMC4xLTUuOGwwLTcuMmwwLTcuMWMwLTEuNSwwLjEtMi41LDAuMi0yLjdjMC0wLjIsMC4xLTAuMywwLjItMC40YzAuMS0wLjEsMC4yLTAuMiwwLjQtMC4yDQoJCWMwLjMtMC4xLDEuMS0wLjIsMi40LTAuM3YtMS41Qzg0LjUsNTcuOSw4Myw1OCw4MS4zLDU4QzgwLDU4LDc4LjgsNTcuOSw3Ny41LDU3Ljl6IE0xMDIuNyw1OS42YzEuMiwwLDIuMywwLjIsMy4zLDAuNA0KCQljMSwwLjMsMS43LDAuNywyLjMsMS4xYzAuNiwwLjQsMC45LDAuNywxLDAuOWMwLjEsMC4yLDAuMSwxLjIsMC4yLDMuMWgxLjVjMC4xLTEuNSwwLjItMi43LDAuNC0zLjhjMC4xLTAuNiwwLjItMS4yLDAuNC0xLjgNCgkJbC0wLjEtMC4zYy0xLjUtMC42LTIuOS0xLTQuNS0xLjJjLTEuNS0wLjMtMy0wLjQtNC41LTAuNGMtNC42LDAtOC4yLDEuMi0xMC44LDMuNWMtMi42LDIuNC0zLjksNS40LTMuOSw5LjFjMCwyLjUsMC42LDQuOCwxLjcsNi44DQoJCWMxLjEsMS45LDIuOCwzLjUsNC45LDQuNmMyLjIsMS4xLDQuOCwxLjYsNy45LDEuNmMxLjYsMCwzLjEtMC4xLDQuNC0wLjVjMS4zLTAuMywyLjYtMC44LDQtMS42YzAuMi0wLjYsMC41LTEuMiwwLjgtMS44bC0wLjQtMC40DQoJCWMtMS4zLDAuNy0yLjUsMS4xLTMuNiwxLjRjLTEuMSwwLjMtMi4zLDAuNC0zLjUsMC40Yy0zLjMsMC01LjgtMS03LjYtMi45Yy0yLTIuMS0zLTQuOS0zLTguMmMwLTMuMSwwLjktNS42LDIuNS03LjMNCgkJQzk3LjYsNjAuNSw5OS45LDU5LjYsMTAyLjcsNTkuNnogTTEzNS4zLDU5Yy0xLjktMS00LjQtMS41LTcuNC0xLjVjLTMuMSwwLTUuNywwLjUtNy43LDEuNmMtMiwxLTMuNSwyLjUtNC43LDQuNA0KCQljLTEuMSwxLjktMS43LDQuMy0xLjcsN2MwLDMuOSwxLjIsNywzLjUsOS4zYzIuMywyLjMsNS42LDMuNCwxMCwzLjRjMi45LDAsNS4zLTAuNiw3LjQtMS43YzIuMS0xLjEsMy43LTIuNyw0LjgtNC43DQoJCWMxLjEtMiwxLjctNC40LDEuNy03LjJjMC0yLjUtMC41LTQuNy0xLjYtNi41QzEzOC43LDYxLjQsMTM3LjIsNjAsMTM1LjMsNTl6IE0xMzMuNyw3OC42Yy0xLjQsMS44LTMuMywyLjctNS43LDIuNw0KCQljLTEuOSwwLTMuNS0wLjQtNC43LTEuMmMtMS4yLTAuOC0yLjItMi0yLjktMy44Yy0wLjgtMS44LTEuMi0zLjktMS4yLTYuNWMwLTMuNSwwLjctNi4xLDIuMS03LjljMS40LTEuNywzLjQtMi41LDUuOS0yLjUNCgkJYzIuNywwLDQuOCwwLjgsNi4xLDIuNWMxLjYsMiwyLjQsNC45LDIuNCw4LjdDMTM1LjgsNzQuMiwxMzUuMSw3Ni45LDEzMy43LDc4LjZ6IE0xNjUuMSw3OS44bC0yLjktNC40bC0zLjctNS43DQoJCWMyLTAuOCwzLjQtMS44LDQuMi0yLjljMC44LTEuMSwxLjItMi4zLDEuMi0zLjdjMC0xLjEtMC4yLTIuMS0wLjgtMi45Yy0wLjUtMC44LTEuMi0xLjQtMi4xLTEuOGMtMC45LTAuNC0yLjMtMC42LTQuMi0wLjZMMTQ4LDU4DQoJCWMtMC43LDAtMi4zLDAtNC43LTAuMXYxLjVjMS4zLDAuMSwyLDAuMywyLjIsMC40YzAuMiwwLjEsMC4zLDAuMiwwLjMsMC40YzAuMiwwLjUsMC4zLDEuOSwwLjMsNC4yYzAsMywwLjEsNS42LDAuMSw3LjUNCgkJYzAsMS40LDAsMy41LTAuMSw2YzAsMS42LTAuMSwyLjYtMC4yLDIuOWMtMC4xLDAuMi0wLjIsMC4zLTAuMywwLjNjLTAuMiwwLjEtMSwwLjItMi4zLDAuM3YxLjVjMi0wLjEsMy44LTAuMSw1LjYtMC4xDQoJCWMxLjYsMCwzLjUsMC4xLDUuNiwwLjF2LTEuNWMtMS4zLTAuMS0yLjEtMC4yLTIuNC0wLjNjLTAuMi0wLjEtMC4zLTAuMi0wLjQtMC40Yy0wLjEtMC4yLTAuMi0xLjItMC4zLTNjLTAuMS0yLjMtMC4yLTQuMy0wLjItNS44DQoJCWwwLjEtNi42bDAuMS01LjNjMC45LTAuMSwxLjctMC4xLDIuMi0wLjFjMS43LDAsMi45LDAuNCwzLjgsMS4yYzAuOCwwLjgsMS4zLDEuOSwxLjMsMy40YzAsMS42LTAuNSwyLjktMS42LDMuOA0KCQljLTEuMSwwLjktMi4xLDEuNC0zLjIsMS40Yy0wLjIsMC0wLjYsMC0xLTAuMWMtMC4xLDAuMi0wLjEtMC40LTAuMiwwLjZsMy42LDUuNWMyLjEsMy4xLDMuNiw1LjUsNC42LDcuMmMwLjksMCwyLjgtMC4xLDUuOC0wLjENCgkJbDEsMHYtMS4zYy0wLjYsMC0xLjEtMC4xLTEuNC0wLjJDMTY2LDgwLjksMTY1LjYsODAuNSwxNjUuMSw3OS44eiBNMTk1LjgsNjIuOGMtMS0xLjctMi4zLTIuOS0zLjktMy43Yy0xLjYtMC44LTQuMS0xLjItNy4zLTEuMg0KCQlsLTguOCwwLjFjLTIuMywwLTQuNCwwLTYuMS0wLjF2MS41YzEuNSwwLjIsMi40LDAuMywyLjYsMC40YzAuMSwwLjEsMC4yLDAuMSwwLjIsMC4zYzAuMSwwLjIsMC4yLDEuMiwwLjIsMi45DQoJCWMwLjEsMS42LDAuMSwzLjcsMC4xLDYuMmMwLDUuNy0wLjEsOS42LTAuMywxMS43Yy0wLjMsMC4yLTAuOSwwLjYtMS44LDEuMXYwLjljMi4yLTAuMSwzLjgtMC4xLDQuOC0wLjFsNi44LDAuMQ0KCQljMi41LDAsNC44LTAuNCw3LTEuNGMyLjItMC45LDQuMS0yLjUsNS42LTQuN2MxLjUtMi4yLDIuMy00LjgsMi4zLTcuOUMxOTcuMyw2Ni40LDE5Ni44LDY0LjQsMTk1LjgsNjIuOHogTTE5MC42LDc2DQoJCWMtMC45LDEuNy0yLDIuOS0zLjQsMy43Yy0xLjQsMC43LTMuNCwxLjEtNi4xLDEuMWMtMSwwLTItMC4xLTMuMS0wLjJjLTAuMS0xLjctMC4xLTQuOS0wLjEtOS41bDAuMS0xMWMxLjgtMC4xLDMuMS0wLjIsMy44LTAuMg0KCQljMy40LDAsNS45LDAuOCw3LjQsMi4zYzEuNywxLjcsMi42LDQuMiwyLjYsNy41QzE5MS45LDcyLjIsMTkxLjQsNzQuMywxOTAuNiw3NnoiLz4NCgk8Zz4NCgkJPGxpbmVhckdyYWRpZW50IGlkPSJTVkdJRF8yXyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSI3Ny42MDE2IiB5MT0iMC4zNjY4IiB4Mj0iNzcuNjAxNiIgeTI9Ijg0Ljc2NyI+DQoJCQk8c3RvcCAgb2Zmc2V0PSIwIiBzdHlsZT0ic3RvcC1jb2xvcjojMDA2RUI5Ii8+DQoJCQk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojMkUzMTkyIi8+DQoJCTwvbGluZWFyR3JhZGllbnQ+DQoJCTxwYXRoIGNsYXNzPSJzdDEiIGQ9Ik04MC4yLDI2LjFjMC02LjYsNS40LTEyLDEyLTEyYzIuNCwwLDQuNiwwLjcsNi40LDEuOWwtMTYtMTZMNTYuNiwyNi4xbDI2LjEsMjYuMWwxNi0xNg0KCQkJYy0xLjksMS4yLTQuMSwxLjktNi40LDEuOUM4NS42LDM4LjIsODAuMiwzMi44LDgwLjIsMjYuMXoiLz4NCgkJPGxpbmVhckdyYWRpZW50IGlkPSJTVkdJRF8zXyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSIxMTkuNjk1OCIgeTE9IjAuMzY2OCIgeDI9IjExOS42OTU4IiB5Mj0iODQuNzY3Ij4NCgkJCTxzdG9wICBvZmZzZXQ9IjAiIHN0eWxlPSJzdG9wLWNvbG9yOiMwMDZFQjkiLz4NCgkJCTxzdG9wICBvZmZzZXQ9IjEiIHN0eWxlPSJzdG9wLWNvbG9yOiMyRTMxOTIiLz4NCgkJPC9saW5lYXJHcmFkaWVudD4NCgkJPHBhdGggY2xhc3M9InN0MiIgZD0iTTEyMi4zLDI2LjFjMC02LjYsNS40LTEyLDEyLTEyYzIuNCwwLDQuNiwwLjcsNi40LDEuOWwtMTYtMTZMOTguNiwyNi4xbDI2LjEsMjYuMWwxNi0xNg0KCQkJYy0xLjksMS4yLTQuMSwxLjktNi40LDEuOUMxMjcuNywzOC4yLDEyMi4zLDMyLjgsMTIyLjMsMjYuMXoiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==";
 
-    const blob = new Blob([reportContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, '_')}_Report.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const img = new Image();
+    img.src = `data:image/svg+xml;base64,${logoSvgBase64}`;
 
-    if (showToast) showToast(`Report downloaded for ${project.name}`, 'success');
+    img.onload = () => {
+      const doc = new jsPDF();
+
+      // Draw SVG to canvas to get PNG for jsPDF
+      const canvas = document.createElement('canvas');
+      canvas.width = 800; // Render at high res
+      canvas.height = (img.height / img.width) * 800;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pngDataUrl = canvas.toDataURL('image/png');
+
+      // Header Background
+      doc.setFillColor(15, 23, 42); // Very dark blue/slate
+      doc.rect(0, 0, 210, 35, 'F');
+
+      // Top Left: Actual Concord Logo
+      doc.addImage(pngDataUrl, 'PNG', 15, 8, 45, (canvas.height / canvas.width) * 45);
+
+      // Top Right: INVOICE Title
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(28);
+      doc.setFont("helvetica", "bold");
+      doc.text("INVOICE", 195, 22, null, null, "right");
+
+      // Invoice Metadata
+      const invoiceId = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+      const today = new Date().toLocaleDateString();
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Invoice Number:", 140, 50);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(invoiceId, 195, 50, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date of Issue:", 140, 58);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(today, 195, 58, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "bold");
+      doc.text("Due Date:", 140, 66);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(project.deadline || 'Upon Receipt', 195, 66, null, null, "right");
+
+      // Billed To Section
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("BILLED TO:", 15, 50);
+
+      const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const nameFromProfile = savedUser.fullName || [savedUser.firstName, savedUser.lastName].filter(Boolean).join(' ');
+      const billName = nameFromProfile || project.client || "Client Not Specified";
+      const billNID = savedUser.nid || "N/A";
+      const billBlood = savedUser.bloodGroup || "N/A";
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.text(billName, 15, 58);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`NID: ${billNID}`, 15, 64);
+      doc.text(`Blood Group: ${billBlood}`, 15, 70);
+
+      // Divider Line
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(15, 80, 195, 80);
+
+      // Project Details Section
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Project Description", 15, 95);
+
+      // Table Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, 105, 180, 10, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("DESCRIPTION", 20, 112);
+      doc.text("STATUS", 110, 112);
+      doc.text("PROGRESS", 150, 112);
+      doc.text("AMOUNT", 190, 112, null, null, "right");
+
+      // Table Row
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(project.name, 20, 125);
+
+      // Status Color
+      let rgb = [31, 41, 55];
+      if (project.color === '#10b981') rgb = [16, 185, 129];
+      if (project.color === '#3b82f6') rgb = [59, 130, 246];
+      if (project.color === '#ef4444') rgb = [239, 68, 68];
+      if (project.color === '#f59e0b') rgb = [245, 158, 11];
+      doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+      doc.setFont("helvetica", "bold");
+      doc.text(project.status, 110, 125);
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${project.progress}%`, 150, 125);
+
+      const displayBudget = project.budget && project.budget !== '—' ? project.budget : "TBD";
+      doc.text(displayBudget, 190, 125, null, null, "right");
+
+      // Table Bottom Line
+      doc.setDrawColor(226, 232, 240);
+      doc.line(15, 135, 195, 135);
+
+      // Totals Section
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Subtotal:", 150, 145);
+      doc.setTextColor(15, 23, 42);
+      doc.text(displayBudget, 190, 145, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.text("Tax (0%):", 150, 153);
+      doc.setTextColor(15, 23, 42);
+      doc.text("0.00", 190, 153, null, null, "right");
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(145, 158, 195, 158);
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("Total:", 150, 168);
+      doc.text(displayBudget, 190, 168, null, null, "right");
+
+      // Terms & Conditions
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Terms & Conditions:", 15, 190);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Payment is due within 15 days of the invoice date.", 15, 198);
+      doc.text("2. Please include the invoice number on your check or transfer.", 15, 204);
+
+      // Footer
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, 270, 210, 27, 'F');
+
+      // Footer Logo
+      doc.addImage(pngDataUrl, 'PNG', 15, 275, 25, (canvas.height / canvas.width) * 25);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text("support@concordrealestatebd.com | www.concordrealestatebd.com", 45, 282);
+
+      // Save PDF
+      doc.save(`Invoice_${invoiceId}_${project.name.replace(/\s+/g, '_')}.pdf`);
+
+      if (showToast) showToast(`Professional Invoice generated for ${project.name}`, 'success');
+    };
+
+    // Fallback if image fails to load
+    img.onerror = () => {
+      alert("Failed to load Concord logo. Please check your internet connection and try again.");
+    };
   };
 
   return (
@@ -611,6 +776,17 @@ function ProfileTab({ user, setUser, showToast }) {
     };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    // Save extended profile data permanently so it survives logout
+    localStorage.setItem(`concord_profile_${updatedUser.email}`, JSON.stringify({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      nid: formData.nid,
+      passport: formData.passport,
+      bloodGroup: formData.bloodGroup,
+      fullName: updatedUser.fullName
+    }));
+
     setIsEditing(false);
     showToast("Profile details updated successfully!", 'success');
   };
@@ -804,7 +980,17 @@ function Dashboard() {
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (!stored) { navigate('/login'); return; }
-    setUser(JSON.parse(stored));
+
+    let parsedUser = JSON.parse(stored);
+
+    // Restore extended profile data if it exists for this user
+    const extendedProfile = localStorage.getItem(`concord_profile_${parsedUser.email}`);
+    if (extendedProfile) {
+      parsedUser = { ...parsedUser, ...JSON.parse(extendedProfile) };
+      localStorage.setItem('user', JSON.stringify(parsedUser)); // Sync merged data
+    }
+
+    setUser(parsedUser);
 
     // Apply theme on load
     if (localStorage.getItem('theme') === 'light') {
