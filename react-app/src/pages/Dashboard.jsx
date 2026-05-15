@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
+import { triggerPropertiesUpdate } from './Properties';
 
 // ========== OVERVIEW TAB ==========
 function OverviewTab({ isOffice }) {
@@ -120,7 +121,7 @@ function OverviewTab({ isOffice }) {
 }
 
 // ========== PROJECTS TAB ==========
-function ProjectsTab({ isOffice, showToast }) {
+function ProjectsTab({ isOffice, showToast, onProjectUpdate }) {
   const defaultOfficeProjects = [
     { name: 'Gulshan Heights', status: 'In Progress', progress: 72, budget: '৳85M', client: 'Ahmed Group', deadline: 'Dec 2026', color: '#3b82f6' },
     { name: 'Banani Tower', status: 'Planning', progress: 25, budget: '৳120M', client: 'Rahman Corp', deadline: 'Mar 2027', color: '#f59e0b' },
@@ -219,6 +220,9 @@ function ProjectsTab({ isOffice, showToast }) {
     setShowForm(false);
     setEditIndex(null);
     setNewProject({ name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: '' });
+
+    // Trigger real-time properties update
+    triggerPropertiesUpdate();
   };
 
   const handleEdit = (originalIndex) => {
@@ -231,6 +235,8 @@ function ProjectsTab({ isOffice, showToast }) {
     if (window.confirm('Are you sure you want to delete this project?')) {
       const updatedProjects = projects.filter((_, i) => i !== originalIndex);
       setProjects(updatedProjects);
+      // Trigger real-time properties update
+      triggerPropertiesUpdate();
     }
   };
 
