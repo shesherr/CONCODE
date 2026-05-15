@@ -884,34 +884,425 @@ function ReportsTab() {
   );
 }
 
-// ========== TASKS TAB (User) ==========
-function TasksTab() {
-  const [tasks, setTasks] = useState([
-    { text: 'Complete homepage design', done: true, priority: 'High' },
-    { text: 'Fix login page bugs', done: true, priority: 'High' },
-    { text: 'Review project proposal', done: false, priority: 'Medium' },
-    { text: 'Update documentation', done: false, priority: 'Low' },
-    { text: 'Setup CI/CD pipeline', done: false, priority: 'Medium' },
-    { text: 'Write unit tests', done: false, priority: 'High' },
-  ]);
+// ========== PROPERTY WATCHLIST TAB (User) ==========
+function WatchlistTab({ showToast }) {
+  const [watchlist, setWatchlist] = useState(() => {
+    const saved = localStorage.getItem('concord_watchlist');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 1,
+        name: 'Gulshan Heights Residence',
+        location: 'Gulshan 2, Dhaka',
+        price: '৳12.5M',
+        size: '2,500 sqft',
+        beds: 3,
+        baths: 3,
+        type: 'Apartment',
+        status: 'Available',
+        image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop',
+        addedDate: '2026-05-10',
+        notes: 'Prime location, great view'
+      },
+      {
+        id: 2,
+        name: 'Banani Lake View',
+        location: 'Banani 11, Dhaka',
+        price: '৳18.2M',
+        size: '3,200 sqft',
+        beds: 4,
+        baths: 4,
+        type: 'Penthouse',
+        status: 'Under Review',
+        image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop',
+        addedDate: '2026-05-08',
+        notes: 'Interested in lake view units'
+      },
+      {
+        id: 3,
+        name: 'Dhanmondi Premium Villa',
+        location: 'Dhanmondi 27, Dhaka',
+        price: '৳25M',
+        size: '4,500 sqft',
+        beds: 5,
+        baths: 5,
+        type: 'Villa',
+        status: 'Available',
+        image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=300&fit=crop',
+        addedDate: '2026-05-05',
+        notes: 'Family home option'
+      }
+    ];
+  });
 
-  const toggle = (idx) => { const t = [...tasks]; t[idx].done = !t[idx].done; setTasks(t); };
-  const pColor = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' };
+  const [filterType, setFilterType] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [sortBy, setSortBy] = useState('date');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
+
+  useEffect(() => {
+    localStorage.setItem('concord_watchlist', JSON.stringify(watchlist));
+  }, [watchlist]);
+
+  const filteredAndSortedWatchlist = watchlist
+    .filter(property => {
+      const matchesSearch = property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.location.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'All' || property.type === filterType;
+      const matchesStatus = filterStatus === 'All' || property.status === filterStatus;
+      return matchesSearch && matchesType && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price') return parseFloat(b.price.replace(/[৳M,]/g, '')) - parseFloat(a.price.replace(/[৳M,]/g, ''));
+      if (sortBy === 'size') return parseFloat(b.size) - parseFloat(a.size);
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      return new Date(b.addedDate) - new Date(a.addedDate);
+    });
+
+  const handleRemove = (id) => {
+    if (window.confirm('Are you sure you want to remove this property from your watchlist?')) {
+      setWatchlist(watchlist.filter(p => p.id !== id));
+      showToast('Property removed from watchlist', 'success');
+    }
+  };
+
+  const handleScheduleVisit = (property) => {
+    showToast(`Visit scheduled for ${property.name}. Our team will contact you soon!`, 'success');
+  };
+
+  const handleRequestInfo = (property) => {
+    showToast(`Information request sent for ${property.name}`, 'success');
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Available': return '#10b981';
+      case 'Reserved': return '#f59e0b';
+      case 'Sold': return '#ef4444';
+      case 'Under Review': return '#8b5cf6';
+      default: return '#6b7280';
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'Apartment': return '🏢';
+      case 'Villa': return '🏡';
+      case 'Penthouse': return '🌆';
+      case 'Studio': return '🏠';
+      default: return '🏘️';
+    }
+  };
 
   return (
     <>
-      <div className="dash-page-header"><h2>✅ My Tasks</h2><span className="task-count">{tasks.filter(t => t.done).length}/{tasks.length} done</span></div>
-      <div className="dash-card">
-        <div className="tasks-list">
-          {tasks.map((t, i) => (
-            <div key={i} className={`task-item ${t.done ? 'task-done' : ''}`} onClick={() => toggle(i)}>
-              <div className={`task-check ${t.done ? 'checked' : ''}`}>{t.done ? '✓' : ''}</div>
-              <span className="task-text">{t.text}</span>
-              <span className="priority-pill" style={{ background: `${pColor[t.priority]}22`, color: pColor[t.priority] }}>{t.priority}</span>
+      <div className="dash-page-header">
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+          Property Watchlist
+        </h2>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <span className="watchlist-count">
+            {watchlist.length} {watchlist.length === 1 ? 'Property' : 'Properties'}
+          </span>
+          <button className="dash-btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? '✕ Cancel' : '+ Add Property'}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="watchlist-stats">
+        <div className="watchlist-stat-card" style={{ '--accent': '#3b82f6' }}>
+          <div className="watchlist-stat-icon">🏘️</div>
+          <div className="watchlist-stat-info">
+            <span className="watchlist-stat-value">{watchlist.length}</span>
+            <span className="watchlist-stat-label">Total Properties</span>
+          </div>
+        </div>
+        <div className="watchlist-stat-card" style={{ '--accent': '#10b981' }}>
+          <div className="watchlist-stat-icon">✅</div>
+          <div className="watchlist-stat-info">
+            <span className="watchlist-stat-value">{watchlist.filter(p => p.status === 'Available').length}</span>
+            <span className="watchlist-stat-label">Available</span>
+          </div>
+        </div>
+        <div className="watchlist-stat-card" style={{ '--accent': '#8b5cf6' }}>
+          <div className="watchlist-stat-icon">⭐</div>
+          <div className="watchlist-stat-info">
+            <span className="watchlist-stat-value">{watchlist.filter(p => p.status === 'Under Review').length}</span>
+            <span className="watchlist-stat-label">Under Review</span>
+          </div>
+        </div>
+        <div className="watchlist-stat-card" style={{ '--accent': '#f59e0b' }}>
+          <div className="watchlist-stat-icon">💰</div>
+          <div className="watchlist-stat-info">
+            <span className="watchlist-stat-value">
+              {watchlist.length > 0 ? '৳' + (watchlist.reduce((sum, p) => sum + parseFloat(p.price.replace(/[৳M,]/g, '')), 0) / watchlist.length).toFixed(1) + 'M' : '—'}
+            </span>
+            <span className="watchlist-stat-label">Avg. Price</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters & Controls */}
+      <div className="watchlist-controls">
+        <div className="watchlist-search">
+          <span className="watchlist-search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search properties..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="watchlist-search-input"
+          />
+        </div>
+
+        <div className="watchlist-filters">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="watchlist-filter-select"
+          >
+            <option value="All">All Types</option>
+            <option value="Apartment">🏢 Apartments</option>
+            <option value="Villa">🏡 Villas</option>
+            <option value="Penthouse">🌆 Penthouses</option>
+            <option value="Studio">🏠 Studios</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="watchlist-filter-select"
+          >
+            <option value="All">All Status</option>
+            <option value="Available">✅ Available</option>
+            <option value="Under Review">⭐ Under Review</option>
+            <option value="Reserved">🔒 Reserved</option>
+            <option value="Sold">❌ Sold</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="watchlist-filter-select"
+          >
+            <option value="date">📅 Recently Added</option>
+            <option value="price">💰 Price (High-Low)</option>
+            <option value="size">📐 Size (Large-Small)</option>
+            <option value="name">🔤 Name (A-Z)</option>
+          </select>
+        </div>
+
+        <div className="watchlist-view-toggle">
+          <button
+            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Grid View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+          <button
+            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')}
+            title="List View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Add Property Form */}
+      {showAddForm && (
+        <div className="dash-card" style={{ marginBottom: '1.5rem', border: '1px solid var(--accent)' }}>
+          <div className="dash-card-header"><h3>Add Property to Watchlist</h3></div>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const newProperty = {
+              id: Date.now(),
+              name: formData.get('name'),
+              location: formData.get('location'),
+              price: formData.get('price'),
+              size: formData.get('size'),
+              beds: parseInt(formData.get('beds')),
+              baths: parseInt(formData.get('baths')),
+              type: formData.get('type'),
+              status: 'Available',
+              image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
+              addedDate: new Date().toISOString().split('T')[0],
+              notes: formData.get('notes') || ''
+            };
+            setWatchlist([newProperty, ...watchlist]);
+            setShowAddForm(false);
+            showToast('Property added to watchlist!', 'success');
+            e.target.reset();
+          }} className="watchlist-add-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', padding: '1.5rem' }}>
+            <div className="form-group">
+              <label>Property Name</label>
+              <div className="input-wrapper"><input type="text" name="name" required placeholder="e.g., Gulshan Heights" /></div>
+            </div>
+            <div className="form-group">
+              <label>Location</label>
+              <div className="input-wrapper"><input type="text" name="location" required placeholder="e.g., Gulshan 2, Dhaka" /></div>
+            </div>
+            <div className="form-group">
+              <label>Price</label>
+              <div className="input-wrapper"><input type="text" name="price" required placeholder="e.g., ৳12.5M" /></div>
+            </div>
+            <div className="form-group">
+              <label>Size</label>
+              <div className="input-wrapper"><input type="text" name="size" required placeholder="e.g., 2,500 sqft" /></div>
+            </div>
+            <div className="form-group">
+              <label>Bedrooms</label>
+              <div className="input-wrapper"><input type="number" name="beds" required min="1" placeholder="3" /></div>
+            </div>
+            <div className="form-group">
+              <label>Bathrooms</label>
+              <div className="input-wrapper"><input type="number" name="baths" required min="1" placeholder="3" /></div>
+            </div>
+            <div className="form-group">
+              <label>Property Type</label>
+              <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                <select name="type" style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}>
+                  <option value="Apartment">🏢 Apartment</option>
+                  <option value="Villa">🏡 Villa</option>
+                  <option value="Penthouse">🌆 Penthouse</option>
+                  <option value="Studio">🏠 Studio</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Notes (Optional)</label>
+              <div className="input-wrapper"><input type="text" name="notes" placeholder="Personal notes..." /></div>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <button type="submit" className="dash-btn-primary" style={{ width: '100%' }}>Add to Watchlist</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Watchlist Grid/List */}
+      {filteredAndSortedWatchlist.length === 0 ? (
+        <div className="dash-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏘️</div>
+          <h3 style={{ marginBottom: '.5rem' }}>No Properties Found</h3>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {searchTerm || filterType !== 'All' || filterStatus !== 'All'
+              ? 'Try adjusting your filters or search terms.'
+              : 'Start building your dream home watchlist!'}
+          </p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="watchlist-grid">
+          {filteredAndSortedWatchlist.map((property, index) => (
+            <div key={property.id} className="watchlist-card" style={{ animationDelay: `${index * 0.08}s` }}>
+              <div className="watchlist-card-image">
+                <img src={property.image} alt={property.name} />
+                <div className="watchlist-card-badges">
+                  <span className="watchlist-type-badge">{getTypeIcon(property.type)} {property.type}</span>
+                  <span className="watchlist-status-badge" style={{ background: `${getStatusColor(property.status)}22`, color: getStatusColor(property.status) }}>
+                    {property.status}
+                  </span>
+                </div>
+                <button className="watchlist-remove-btn" onClick={() => handleRemove(property.id)} title="Remove from watchlist">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="watchlist-card-content">
+                <h3 className="watchlist-property-name">{property.name}</h3>
+                <p className="watchlist-property-location">📍 {property.location}</p>
+
+                <div className="watchlist-property-specs">
+                  <span>🛏️ {property.beds} Beds</span>
+                  <span>🚿 {property.baths} Baths</span>
+                  <span>📐 {property.size}</span>
+                </div>
+
+                <div className="watchlist-property-price">{property.price}</div>
+
+                {property.notes && (
+                  <div className="watchlist-property-notes">
+                    <span>📝 {property.notes}</span>
+                  </div>
+                )}
+
+                <div className="watchlist-card-actions">
+                  <button className="watchlist-action-btn watchlist-action-primary" onClick={() => handleScheduleVisit(property)}>
+                    📅 Schedule Visit
+                  </button>
+                  <button className="watchlist-action-btn watchlist-action-secondary" onClick={() => handleRequestInfo(property)}>
+                    💬 Request Info
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="watchlist-list">
+          {filteredAndSortedWatchlist.map((property, index) => (
+            <div key={property.id} className="watchlist-list-item" style={{ animationDelay: `${index * 0.05}s` }}>
+              <img src={property.image} alt={property.name} className="watchlist-list-image" />
+              <div className="watchlist-list-content">
+                <div className="watchlist-list-header">
+                  <h3>{property.name}</h3>
+                  <span className="watchlist-price-tag">{property.price}</span>
+                </div>
+                <p className="watchlist-list-location">📍 {property.location}</p>
+                <div className="watchlist-list-specs">
+                  <span>{getTypeIcon(property.type)} {property.type}</span>
+                  <span>🛏️ {property.beds} Beds</span>
+                  <span>🚿 {property.baths} Baths</span>
+                  <span>📐 {property.size}</span>
+                  <span className="watchlist-status-badge" style={{ background: `${getStatusColor(property.status)}22`, color: getStatusColor(property.status) }}>
+                    {property.status}
+                  </span>
+                </div>
+                {property.notes && (
+                  <p className="watchlist-list-notes">📝 {property.notes}</p>
+                )}
+              </div>
+              <div className="watchlist-list-actions">
+                <button onClick={() => handleScheduleVisit(property)} className="dash-btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                  📅 Visit
+                </button>
+                <button onClick={() => handleRequestInfo(property)} className="dash-btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                  💬 Info
+                </button>
+                <button onClick={() => handleRemove(property.id)} style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="Remove">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -925,8 +1316,62 @@ function ProfileTab({ user, setUser, showToast }) {
     lastName: user.lastName || (user.fullName ? user.fullName.split(' ').slice(1).join(' ') : ''),
     nid: user.nid || '',
     passport: user.passport || '',
-    bloodGroup: user.bloodGroup || ''
+    bloodGroup: user.bloodGroup || '',
+    phone: user.phone || '',
+    location: user.location || '',
+    bio: user.bio || '',
+    linkedin: user.linkedin || '',
+    twitter: user.twitter || ''
   });
+
+  // Get real stats from localStorage
+  const [stats, setStats] = useState({
+    projects: 0,
+    completedProjects: 0,
+    messages: 0,
+    achievements: 0
+  });
+
+  useEffect(() => {
+    const savedProjects = localStorage.getItem('concord_projects');
+    const savedMessages = localStorage.getItem('concord_messages');
+
+    if (savedProjects) {
+      const projects = JSON.parse(savedProjects);
+      setStats(prev => ({
+        ...prev,
+        projects: projects.length,
+        completedProjects: projects.filter(p => p.status === 'Completed').length
+      }));
+    }
+
+    if (savedMessages) {
+      const messages = JSON.parse(savedMessages);
+      setStats(prev => ({ ...prev, messages: messages.length }));
+    }
+
+    // Calculate achievements based on activity
+    setStats(prev => ({
+      ...prev,
+      achievements: Math.floor(prev.completedProjects * 10 + prev.messages * 5)
+    }));
+  }, []);
+
+  const recentActivities = [
+    { icon: '📁', text: 'Updated project portfolio', time: '2 hours ago', type: 'project' },
+    { icon: '💬', text: 'Received new message', time: '5 hours ago', type: 'message' },
+    { icon: '✅', text: 'Completed task review', time: 'Yesterday', type: 'task' },
+    { icon: '🏆', text: 'Earned new achievement', time: '2 days ago', type: 'achievement' },
+  ];
+
+  const achievements = [
+    { icon: '🚀', title: 'Early Adopter', description: 'Joined in the first month', unlocked: true },
+    { icon: '📁', title: 'Project Master', description: 'Created 5+ projects', unlocked: stats.projects >= 5 },
+    { icon: '⭐', title: 'Perfect Score', description: 'Completed all tasks', unlocked: stats.completedProjects === stats.projects && stats.projects > 0 },
+    { icon: '💬', title: 'Communicator', description: 'Sent 10+ messages', unlocked: stats.messages >= 10 },
+    { icon: '🔥', title: 'On Fire', description: '7 day login streak', unlocked: false },
+    { icon: '🏆', title: 'Champion', description: 'Top performer', unlocked: stats.achievements >= 100 },
+  ];
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -944,6 +1389,11 @@ function ProfileTab({ user, setUser, showToast }) {
       nid: formData.nid,
       passport: formData.passport,
       bloodGroup: formData.bloodGroup,
+      phone: formData.phone,
+      location: formData.location,
+      bio: formData.bio,
+      linkedin: formData.linkedin,
+      twitter: formData.twitter,
       fullName: updatedUser.fullName
     }));
 
@@ -962,90 +1412,392 @@ function ProfileTab({ user, setUser, showToast }) {
   return (
     <>
       <div className="dash-page-header">
-        <h2>👤 Profile</h2>
+        <h2>👤 My Profile</h2>
         <button className="dash-btn-primary" onClick={() => isEditing ? setIsEditing(false) : setIsEditing(true)}>
-          {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+          {isEditing ? '✕ Cancel' : '✏️ Edit Profile'}
         </button>
       </div>
-      <div className="profile-layout">
-        <div className="dash-card profile-card">
-          <div className="profile-avatar-big" style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {formData.avatar ? <img src={formData.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (formData.firstName?.charAt(0)?.toUpperCase() || formData.fullName?.charAt(0)?.toUpperCase())}
-            {isEditing && (
-              <label style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '12px', padding: '5px', cursor: 'pointer', margin: 0 }}>
-                Upload
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-              </label>
+
+      {/* Profile Banner */}
+      <div className="profile-banner-wrapper">
+        <div className="profile-banner"></div>
+        <div className="profile-banner-content">
+          <div className="profile-avatar-container">
+            <div className="profile-avatar-modern">
+              {formData.avatar ? (
+                <img src={formData.avatar} alt="Profile" className="profile-avatar-img" />
+              ) : (
+                <span className="profile-avatar-letter">
+                  {(formData.firstName?.charAt(0) || formData.fullName?.charAt(0) || 'U').toUpperCase()}
+                </span>
+              )}
+              {isEditing && (
+                <label className="profile-avatar-upload">
+                  <span>📷</span>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} />
+                </label>
+              )}
+            </div>
+          </div>
+          <div className="profile-header-info">
+            <h1 className="profile-name">{`${formData.firstName || ''} ${formData.lastName || ''}`.trim() || formData.fullName}</h1>
+            <p className="profile-title">{formData.bio || 'Real Estate Professional'}</p>
+            <div className="profile-meta">
+              <span className={`role-badge ${formData.role === 'office_member' || formData.role === 'admin' ? 'role-office' : 'role-user'}`}>
+                {formData.role === 'office_member' || formData.role === 'admin' ? '🏢 Office Member' : '👤 Client'}
+              </span>
+              {formData.location && (
+                <span className="profile-location">📍 {formData.location}</span>
+              )}
+            </div>
+          </div>
+          <div className="profile-social-links">
+            {formData.linkedin && (
+              <a href={formData.linkedin} className="social-link-modern" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+              </a>
+            )}
+            {formData.twitter && (
+              <a href={formData.twitter} className="social-link-modern" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </a>
+            )}
+            <a href={`mailto:${formData.email}`} className="social-link-modern" title="Email">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            </a>
+            {formData.phone && (
+              <a href={`tel:${formData.phone}`} className="social-link-modern" title="Phone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              </a>
             )}
           </div>
-          <h3>{`${formData.firstName || ''} ${formData.lastName || ''}`.trim() || formData.fullName}</h3>
-          <p className="profile-email">{formData.email}</p>
-          <span className={`role-badge ${formData.role === 'office_member' || formData.role === 'admin' ? 'role-office' : 'role-user'}`}>
-            {formData.role === 'office_member' || formData.role === 'admin' ? '🏢 Office Member' : '👤 User'}
-          </span>
         </div>
-        <div className="dash-card profile-details">
-          <h3>Account Details</h3>
-          {isEditing ? (
-            <form onSubmit={handleSave} style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>1st Name</label>
-                  <div className="input-wrapper"><input type="text" required value={formData.firstName || ''} onChange={e => setFormData({ ...formData, firstName: e.target.value })} /></div>
+      </div>
+
+      <div className="profile-content-grid">
+        {/* Left Column */}
+        <div className="profile-left-col">
+          {/* Stats Cards */}
+          <div className="profile-stats-grid">
+            <div className="profile-stat-card" style={{ '--accent': '#3b82f6' }}>
+              <div className="stat-icon-modern">📁</div>
+              <div className="stat-info-modern">
+                <span className="stat-value-modern">{stats.projects}</span>
+                <span className="stat-label-modern">Projects</span>
+              </div>
+            </div>
+            <div className="profile-stat-card" style={{ '--accent': '#10b981' }}>
+              <div className="stat-icon-modern">✅</div>
+              <div className="stat-info-modern">
+                <span className="stat-value-modern">{stats.completedProjects}</span>
+                <span className="stat-label-modern">Completed</span>
+              </div>
+            </div>
+            <div className="profile-stat-card" style={{ '--accent': '#8b5cf6' }}>
+              <div className="stat-icon-modern">💬</div>
+              <div className="stat-info-modern">
+                <span className="stat-value-modern">{stats.messages}</span>
+                <span className="stat-label-modern">Messages</span>
+              </div>
+            </div>
+            <div className="profile-stat-card" style={{ '--accent': '#f59e0b' }}>
+              <div className="stat-icon-modern">🏆</div>
+              <div className="stat-info-modern">
+                <span className="stat-value-modern">{stats.achievements}</span>
+                <span className="stat-label-modern">Points</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Achievements */}
+          <div className="dash-card profile-achievements-card">
+            <h3 className="card-title-modern">🏆 Achievements</h3>
+            <div className="achievements-grid">
+              {achievements.map((achievement, index) => (
+                <div
+                  key={index}
+                  className={`achievement-item ${achievement.unlocked ? 'achievement-unlocked' : 'achievement-locked'}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="achievement-icon">{achievement.icon}</div>
+                  <div className="achievement-info">
+                    <h4>{achievement.title}</h4>
+                    <p>{achievement.description}</p>
+                  </div>
+                  {!achievement.unlocked && <div className="achievement-lock">🔒</div>}
                 </div>
-                <div className="form-group">
-                  <label>2nd Name</label>
-                  <div className="input-wrapper"><input type="text" required value={formData.lastName || ''} onChange={e => setFormData({ ...formData, lastName: e.target.value })} /></div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="profile-right-col">
+          {/* Account Details */}
+          <div className="dash-card profile-details-modern">
+            <h3 className="card-title-modern">📋 Account Details</h3>
+            {isEditing ? (
+              <form onSubmit={handleSave} className="profile-edit-form">
+                <div className="form-row-modern">
+                  <div className="form-group-modern">
+                    <label>First Name</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="text"
+                        required
+                        value={formData.firstName || ''}
+                        onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                        placeholder="John"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group-modern">
+                    <label>Last Name</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="text"
+                        required
+                        value={formData.lastName || ''}
+                        onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group-modern">
+                  <label>Bio</label>
+                  <div className="input-wrapper-modern">
+                    <textarea
+                      value={formData.bio || ''}
+                      onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                      placeholder="Tell us about yourself..."
+                      rows="2"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row-modern">
+                  <div className="form-group-modern">
+                    <label>Email</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="email"
+                        required
+                        value={formData.email || ''}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group-modern">
+                    <label>Phone</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="tel"
+                        maxLength={11}
+                        onInput={e => e.target.value = e.target.value.replace(/\D/g, '')}
+                        value={formData.phone || ''}
+                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="+880 1XXX-XXXXXX"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group-modern">
+                  <label>Location</label>
+                  <div className="input-wrapper-modern">
+                    <input
+                      type="text"
+                      value={formData.location || ''}
+                      onChange={e => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="Dhaka, Bangladesh"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row-modern">
+                  <div className="form-group-modern">
+                    <label>NID</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="text"
+                        value={formData.nid || ''}
+                        onChange={e => setFormData({ ...formData, nid: e.target.value })}
+                        placeholder="National ID Number"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group-modern">
+                    <label>Passport</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="text"
+                        value={formData.passport || ''}
+                        onChange={e => setFormData({ ...formData, passport: e.target.value })}
+                        placeholder="Passport Number"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row-modern">
+               <div className="form-group-modern">
+  <label>Blood Group</label>
+
+  <div className="input-wrapper-modern">
+    <select
+      style={{
+        width: '100%',
+        padding: '14px 16px',
+        borderRadius: '12px',
+        border: '1px solid #2563eb',
+        background: '#0f172a',
+        color: '#ffffff',
+        fontSize: '16px',
+        outline: 'none'
+      }}
+      value={formData.bloodGroup || ''}
+      onChange={e =>
+        setFormData({
+          ...formData,
+          bloodGroup: e.target.value
+        })
+      }
+    >
+      <option
+        value=""
+        style={{
+          background: '#0f172a',
+          color: '#ffffff'
+        }}
+      >
+        Select Blood Group
+      </option>
+
+      <option value="A+" style={{ background: '#0f172a', color: '#ffffff' }}>A+</option>
+      <option value="A-" style={{ background: '#0f172a', color: '#ffffff' }}>A-</option>
+      <option value="B+" style={{ background: '#0f172a', color: '#ffffff' }}>B+</option>
+      <option value="B-" style={{ background: '#0f172a', color: '#ffffff' }}>B-</option>
+      <option value="O+" style={{ background: '#0f172a', color: '#ffffff' }}>O+</option>
+      <option value="O-" style={{ background: '#0f172a', color: '#ffffff' }}>O-</option>
+      <option value="AB+" style={{ background: '#0f172a', color: '#ffffff' }}>AB+</option>
+      <option value="AB-" style={{ background: '#0f172a', color: '#ffffff' }}>AB-</option>
+    </select>
+  </div>
+</div>
+                  <div className="form-group-modern">
+                    <label>Role</label>
+                    <div className="input-wrapper-modern input-readonly">
+                      <input
+                        type="text"
+                        value={formData.role || ''}
+                        disabled
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row-modern">
+                  <div className="form-group-modern">
+                    <label>LinkedIn</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="url"
+                        value={formData.linkedin || ''}
+                        onChange={e => setFormData({ ...formData, linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/in/username"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group-modern">
+                    <label>Twitter</label>
+                    <div className="input-wrapper-modern">
+                      <input
+                        type="url"
+                        value={formData.twitter || ''}
+                        onChange={e => setFormData({ ...formData, twitter: e.target.value })}
+                        placeholder="https://twitter.com/username"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-form-actions">
+                  <button type="submit" className="dash-btn-primary">💾 Save Changes</button>
+                  <button type="button" className="dash-btn-outline" onClick={() => setIsEditing(false)}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div className="profile-details-list">
+                <div className="detail-item-modern">
+                  <span className="detail-label">Full Name</span>
+                  <span className="detail-value">{user.firstName || ''} {user.lastName || ''}</span>
+                </div>
+                <div className="detail-item-modern">
+                  <span className="detail-label">Email</span>
+                  <span className="detail-value">{user.email}</span>
+                </div>
+                {user.phone && (
+                  <div className="detail-item-modern">
+                    <span className="detail-label">Phone</span>
+                    <span className="detail-value">{user.phone}</span>
+                  </div>
+                )}
+                {user.location && (
+                  <div className="detail-item-modern">
+                    <span className="detail-label">Location</span>
+                    <span className="detail-value">{user.location}</span>
+                  </div>
+                )}
+                {user.nid && (
+                  <div className="detail-item-modern">
+                    <span className="detail-label">NID</span>
+                    <span className="detail-value">{user.nid}</span>
+                  </div>
+                )}
+                {user.passport && (
+                  <div className="detail-item-modern">
+                    <span className="detail-label">Passport</span>
+                    <span className="detail-value">{user.passport}</span>
+                  </div>
+                )}
+                {user.bloodGroup && (
+                  <div className="detail-item-modern">
+                    <span className="detail-label">Blood Group</span>
+                    <span className="detail-value blood-group-badge">{user.bloodGroup}</span>
+                  </div>
+                )}
+                <div className="detail-item-modern">
+                  <span className="detail-label">Role</span>
+                  <span className="detail-value">{user.role}</span>
+                </div>
+                <div className="detail-item-modern">
+                  <span className="detail-label">Member Since</span>
+                  <span className="detail-value">May 2026</span>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>NID</label>
-                  <div className="input-wrapper"><input type="text" placeholder="National ID" value={formData.nid || ''} onChange={e => setFormData({ ...formData, nid: e.target.value })} /></div>
+            )}
+          </div>
+
+          {/* Recent Activity */}
+          <div className="dash-card activity-timeline-card">
+            <h3 className="card-title-modern">⚡ Recent Activity</h3>
+            <div className="activity-timeline">
+              {recentActivities.map((activity, index) => (
+                <div key={index} className="timeline-item" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <div className="timeline-dot"></div>
+                  <div className="timeline-content">
+                    <div className="timeline-header">
+                      <span className="timeline-icon">{activity.icon}</span>
+                      <span className="timeline-text">{activity.text}</span>
+                    </div>
+                    <span className="timeline-time">{activity.time}</span>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Passport</label>
-                  <div className="input-wrapper"><input type="text" placeholder="Passport Number" value={formData.passport || ''} onChange={e => setFormData({ ...formData, passport: e.target.value })} /></div>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Blood Group</label>
-                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
-                  <select value={formData.bloodGroup || ''} onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })} style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}>
-                    <option value="" style={{ background: '#0f1424' }}>Select Blood Group</option>
-                    <option value="A+" style={{ background: '#0f1424' }}>A+</option>
-                    <option value="A-" style={{ background: '#0f1424' }}>A-</option>
-                    <option value="B+" style={{ background: '#0f1424' }}>B+</option>
-                    <option value="B-" style={{ background: '#0f1424' }}>B-</option>
-                    <option value="O+" style={{ background: '#0f1424' }}>O+</option>
-                    <option value="O-" style={{ background: '#0f1424' }}>O-</option>
-                    <option value="AB+" style={{ background: '#0f1424' }}>AB+</option>
-                    <option value="AB-" style={{ background: '#0f1424' }}>AB-</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <div className="input-wrapper"><input type="email" required value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
-              </div>
-              <div className="form-group">
-                <label>Role (Read Only)</label>
-                <div className="input-wrapper"><input type="text" disabled value={formData.role || ''} style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }} /></div>
-              </div>
-              <button type="submit" className="dash-btn-primary" style={{ marginTop: '1rem' }}>Save Changes</button>
-            </form>
-          ) : (
-            <>
-              <div className="profile-field"><label>1st Name</label><span>{user.firstName || (user.fullName ? user.fullName.split(' ')[0] : 'N/A')}</span></div>
-              <div className="profile-field"><label>2nd Name</label><span>{user.lastName || (user.fullName ? user.fullName.split(' ').slice(1).join(' ') : 'N/A')}</span></div>
-              <div className="profile-field"><label>NID</label><span>{user.nid || 'N/A'}</span></div>
-              <div className="profile-field"><label>Passport</label><span>{user.passport || 'N/A'}</span></div>
-              <div className="profile-field"><label>Blood Group</label><span>{user.bloodGroup || 'N/A'}</span></div>
-              <div className="profile-field"><label>Email</label><span>{user.email}</span></div>
-              <div className="profile-field"><label>Role</label><span>{user.role}</span></div>
-              <div className="profile-field"><label>Member Since</label><span>May 2026</span></div>
-            </>
-          )}
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </>
@@ -1178,7 +1930,7 @@ function Dashboard() {
       { id: 'finance', label: 'Finance', icon: '💰' },
       { id: 'reports', label: 'Reports', icon: '📋' },
     ] : [
-      { id: 'tasks', label: 'My Tasks', icon: '✅' },
+      { id: 'watchlist', label: 'Property Watchlist', icon: '🏘️' },
       { id: 'profile', label: 'Profile', icon: '👤' },
     ]),
     { id: 'settings', label: 'Settings', icon: '⚙️' },
@@ -1192,7 +1944,7 @@ function Dashboard() {
       case 'team': return <TeamTab />;
       case 'finance': return <FinanceTab />;
       case 'reports': return <ReportsTab />;
-      case 'tasks': return <TasksTab />;
+      case 'watchlist': return <WatchlistTab showToast={showToast} />;
       case 'profile': return <ProfileTab user={user} setUser={setUser} showToast={showToast} />;
       case 'settings': return <SettingsTab showToast={showToast} />;
       default: return <OverviewTab isOffice={isOffice} />;
