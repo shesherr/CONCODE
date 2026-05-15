@@ -779,79 +779,1435 @@ function MessagesTab({ showToast }) {
 }
 
 // ========== TEAM TAB ==========
-function TeamTab() {
-  const members = [
-    { name: 'Shishir Arafat', role: 'Admin', email: 'arafat@concord.com', status: 'Active', avatar: 'S' },
-    { name: 'Barsa Akter', role: 'Office Member', email: 'barsa@concord.com', status: 'Active', avatar: 'B' },
-    { name: 'Rahim Khan', role: 'Engineer', email: 'rahim@concord.com', status: 'Active', avatar: 'R' },
-    { name: 'Fatima Noor', role: 'Designer', email: 'fatima@concord.com', status: 'Away', avatar: 'F' },
-    { name: 'Karim Ahmed', role: 'Manager', email: 'karim@concord.com', status: 'Offline', avatar: 'K' },
+function TeamTab({ showToast }) {
+  const defaultMembers = [
+    { id: 1, name: 'Shishir Arafat', role: 'Admin', department: 'Executive', email: 'arafat@concord.com', phone: '+880 1712-345678', status: 'Active', joinDate: '2023-01-15', avatar: 'S', bio: 'Leading the team with excellence' },
+    { id: 2, name: 'Barsa Akter', role: 'Office Member', department: 'Operations', email: 'barsa@concord.com', phone: '+880 1812-345678', status: 'Active', joinDate: '2023-03-20', avatar: 'B', bio: 'Operations specialist' },
+    { id: 3, name: 'Rahim Khan', role: 'Engineer', department: 'Engineering', email: 'rahim@concord.com', phone: '+880 1912-345678', status: 'Active', joinDate: '2023-05-10', avatar: 'R', bio: 'Civil engineering expert' },
+    { id: 4, name: 'Fatima Noor', role: 'Designer', department: 'Design', email: 'fatima@concord.com', phone: '+880 1712-345679', status: 'Away', joinDate: '2023-07-01', avatar: 'F', bio: 'Creative designer' },
+    { id: 5, name: 'Karim Ahmed', role: 'Manager', department: 'Sales', email: 'karim@concord.com', phone: '+880 1812-345679', status: 'Offline', joinDate: '2023-02-28', avatar: 'K', bio: 'Sales manager' },
   ];
+
+  const [members, setMembers] = useState(() => {
+    const saved = localStorage.getItem('concord_team');
+    if (saved) return JSON.parse(saved);
+    return defaultMembers;
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [viewMode, setViewMode] = useState('grid');
+  const [newMember, setNewMember] = useState({
+    name: '', role: '', department: '', email: '', phone: '', status: 'Active', bio: ''
+  });
+
+  useEffect(() => {
+    localStorage.setItem('concord_team', JSON.stringify(members));
+  }, [members]);
+
+  const departments = ['All', ...new Set(members.map(m => m.department))];
+
+  const filteredMembers = members.filter(m => {
+    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.role.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = filterDepartment === 'All' || m.department === filterDepartment;
+    const matchesStatus = filterStatus === 'All' || m.status === filterStatus;
+    return matchesSearch && matchesDepartment && matchesStatus;
+  });
+
+  const handleAddMember = (e) => {
+    e.preventDefault();
+    const memberToAdd = {
+      ...newMember,
+      id: Date.now(),
+      avatar: newMember.name.charAt(0).toUpperCase(),
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+
+    if (editIndex !== null) {
+      const updatedMembers = [...members];
+      updatedMembers[editIndex] = { ...memberToAdd, id: members[editIndex].id };
+      setMembers(updatedMembers);
+      showToast('Team member updated successfully!', 'success');
+    } else {
+      setMembers([memberToAdd, ...members]);
+      showToast('Team member added successfully!', 'success');
+    }
+
+    setShowForm(false);
+    setEditIndex(null);
+    setNewMember({ name: '', role: '', department: '', email: '', phone: '', status: 'Active', bio: '' });
+  };
+
+  const handleEdit = (index) => {
+    const memberToEdit = members[index];
+    setNewMember({
+      name: memberToEdit.name,
+      role: memberToEdit.role,
+      department: memberToEdit.department,
+      email: memberToEdit.email,
+      phone: memberToEdit.phone || '',
+      status: memberToEdit.status,
+      bio: memberToEdit.bio || ''
+    });
+    setEditIndex(index);
+    setShowForm(true);
+  };
+
+  const handleDelete = (index) => {
+    if (window.confirm(`Are you sure you want to remove ${members[index].name} from the team?`)) {
+      const updatedMembers = members.filter((_, i) => i !== index);
+      setMembers(updatedMembers);
+      showToast('Team member removed successfully', 'success');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Active': return '#10b981';
+      case 'Away': return '#f59e0b';
+      case 'Offline': return '#6b7280';
+      case 'In Meeting': return '#8b5cf6';
+      default: return '#6b7280';
+    }
+  };
+
+  const stats = {
+    total: members.length,
+    active: members.filter(m => m.status === 'Active').length,
+    away: members.filter(m => m.status === 'Away').length,
+    departments: new Set(members.map(m => m.department)).size
+  };
 
   return (
     <>
-      <div className="dash-page-header"><h2>👥 Team Members</h2><button className="dash-btn-primary">+ Add Member</button></div>
-      <div className="team-cards-grid">
-        {members.map((m, i) => (
-          <div key={i} className="dash-card team-member-card">
-            <div className="tm-avatar">{m.avatar}</div>
-            <h4>{m.name}</h4>
-            <p className="tm-role">{m.role}</p>
-            <p className="tm-email">{m.email}</p>
-            <span className={`tm-status tm-${m.status.toLowerCase()}`}>● {m.status}</span>
-          </div>
-        ))}
+      <div className="dash-page-header">
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Team Members
+        </h2>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewMember({ name: '', role: '', department: '', email: '', phone: '', status: 'Active', bio: '' }); } }}>
+            {showForm ? '✕ Cancel' : '+ Add Member'}
+          </button>
+        </div>
       </div>
+
+      {/* Team Stats */}
+      <div className="team-stats-overview">
+        <div className="team-stat-card" style={{ '--accent': '#3b82f6' }}>
+          <div className="team-stat-icon">👥</div>
+          <div className="team-stat-info">
+            <span className="team-stat-value">{stats.total}</span>
+            <span className="team-stat-label">Total Members</span>
+          </div>
+        </div>
+        <div className="team-stat-card" style={{ '--accent': '#10b981' }}>
+          <div className="team-stat-icon">🟢</div>
+          <div className="team-stat-info">
+            <span className="team-stat-value">{stats.active}</span>
+            <span className="team-stat-label">Active Now</span>
+          </div>
+        </div>
+        <div className="team-stat-card" style={{ '--accent': '#f59e0b' }}>
+          <div className="team-stat-icon">🟡</div>
+          <div className="team-stat-info">
+            <span className="team-stat-value">{stats.away}</span>
+            <span className="team-stat-label">Away</span>
+          </div>
+        </div>
+        <div className="team-stat-card" style={{ '--accent': '#8b5cf6' }}>
+          <div className="team-stat-icon">🏢</div>
+          <div className="team-stat-info">
+            <span className="team-stat-value">{stats.departments}</span>
+            <span className="team-stat-label">Departments</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="team-controls">
+        <div className="team-search">
+          <span className="team-search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search members by name, role, or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="team-search-input"
+          />
+        </div>
+
+        <div className="team-filters">
+          <select
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            className="team-filter-select"
+          >
+            <option value="All">All Departments</option>
+            {departments.filter(d => d !== 'All').map(dept => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="team-filter-select"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">🟢 Active</option>
+            <option value="Away">🟡 Away</option>
+            <option value="Offline">⚫ Offline</option>
+            <option value="In Meeting">🟣 In Meeting</option>
+          </select>
+        </div>
+
+        <div className="team-view-toggle">
+          <button
+            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Grid View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+          <button
+            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')}
+            title="List View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Add/Edit Member Form */}
+      {showForm && (
+        <div className="dash-card" style={{ marginBottom: '1.5rem', border: '1px solid var(--accent)' }}>
+          <div className="dash-card-header"><h3>{editIndex !== null ? 'Update Team Member' : 'Add New Team Member'}</h3></div>
+          <form onSubmit={handleAddMember} className="team-form" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Full Name</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    required
+                    value={newMember.name}
+                    onChange={e => setNewMember({ ...newMember, name: e.target.value })}
+                    placeholder="e.g., John Doe"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Role/Position</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    required
+                    value={newMember.role}
+                    onChange={e => setNewMember({ ...newMember, role: e.target.value })}
+                    placeholder="e.g., Project Manager"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Department</label>
+                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                  <select
+                    value={newMember.department}
+                    onChange={e => setNewMember({ ...newMember, department: e.target.value })}
+                    required
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                  >
+                    <option  style={{ backgroundColor: '#000', color: '#fff' }}value="Department">Select Department</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Executive">Executive</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Engineering">Engineering</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Design">Design</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Operations">Operations</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Sales">Sales</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Marketing">Marketing</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Finance">Finance</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="HR">HR</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="IT">IT</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <div className="input-wrapper">
+                  <input
+                    type="email"
+                    required
+                    value={newMember.email}
+                    onChange={e => setNewMember({ ...newMember, email: e.target.value })}
+                    placeholder="john@concord.com"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <div className="input-wrapper">
+                  <input
+                    type="tel"
+                    maxLength={11}
+                    value={newMember.phone}
+                    onChange={e => setNewMember({ ...newMember, phone: e.target.value })}
+                    placeholder="+880 1XXX-XXXXXX"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Status</label>
+                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                  <select
+                    value={newMember.status}
+                    onChange={e => setNewMember({ ...newMember, status: e.target.value })}
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffff', outline: 'none' }}
+                  >
+                    <option  style={{ backgroundColor: '#000', color: '#fff' }}value="Active">🟢 Active</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Away" value="Away">🟡 Away</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="Offline" value="Offline">⚫ Offline</option>
+                    <option  style={{ backgroundColor: '#000', color: '#fff' }}value="In Meeting">🟣 In Meeting</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label>Bio (Optional)</label>
+              <div className="input-wrapper">
+                <textarea
+                  value={newMember.bio}
+                  onChange={e => setNewMember({ ...newMember, bio: e.target.value })}
+                  placeholder="Brief description or notes..."
+                  rows="2"
+                  style={{ width: '100%', padding: '10px', border: 'none', background: 'transparent', color: '#fff', outline: 'none', resize: 'vertical', fontFamily: 'Poppins, sans-serif' }}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <button type="submit" className="dash-btn-primary" style={{ flex: 1 }}>
+                {editIndex !== null ? '💾 Update Member' : '➕ Add Member'}
+              </button>
+              <button type="button" className="dash-btn-outline" onClick={() => { setShowForm(false); setEditIndex(null); }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Results Count */}
+      <div className="team-results-count">
+        Showing {filteredMembers.length} of {members.length} team members
+      </div>
+
+      {/* Team Members Grid/List */}
+      {filteredMembers.length === 0 ? (
+        <div className="dash-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+          <h3 style={{ marginBottom: '.5rem' }}>No Team Members Found</h3>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {searchTerm || filterDepartment !== 'All' || filterStatus !== 'All'
+              ? 'Try adjusting your filters or search terms.'
+              : 'Add your first team member to get started!'}
+          </p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="team-cards-grid">
+          {filteredMembers.map((member, index) => (
+            <div key={member.id} className="team-member-card" style={{ animationDelay: `${index * 0.08}s` }}>
+              <div className="team-card-header">
+                <div className={`team-avatar-large team-avatar-${member.status.toLowerCase()}`}>
+                  {member.avatar}
+                </div>
+                <div className="team-status-indicator" style={{ background: getStatusColor(member.status) }}>
+                  <span className="status-pulse"></span>
+                </div>
+              </div>
+
+              <div className="team-card-content">
+                <h3 className="team-member-name">{member.name}</h3>
+                <p className="team-member-role">{member.role}</p>
+                <p className="team-member-department">🏢 {member.department}</p>
+
+                <div className="team-member-contact">
+                  <a href={`mailto:${member.email}`} className="team-contact-link" title="Email">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                  </a>
+                  {member.phone && (
+                    <a href={`tel:${member.phone}`} className="team-contact-link" title="Call">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                      </svg>
+                    </a>
+                  )}
+                </div>
+
+                {member.bio && (
+                  <p className="team-member-bio">"{member.bio}"</p>
+                )}
+
+                <div className="team-member-meta">
+                  <span className="team-status-badge" style={{ background: `${getStatusColor(member.status)}22`, color: getStatusColor(member.status) }}>
+                    {member.status}
+                  </span>
+                  <span className="team-join-date">Joined {new Date(member.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                </div>
+
+                <div className="team-card-actions">
+                  <button onClick={() => handleEdit(members.indexOf(member))} className="team-action-btn team-action-edit" title="Edit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit
+                  </button>
+                  <button onClick={() => handleDelete(members.indexOf(member))} className="team-action-btn team-action-delete" title="Delete">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="team-list-view">
+          {filteredMembers.map((member, index) => (
+            <div key={member.id} className="team-list-item" style={{ animationDelay: `${index * 0.05}s` }}>
+              <div className={`team-avatar-small team-avatar-${member.status.toLowerCase()}`}>
+                {member.avatar}
+              </div>
+              <div className="team-list-content">
+                <div className="team-list-header">
+                  <h3>{member.name}</h3>
+                  <span className="team-status-badge" style={{ background: `${getStatusColor(member.status)}22`, color: getStatusColor(member.status) }}>
+                    {member.status}
+                  </span>
+                </div>
+                <p className="team-list-role">{member.role} · {member.department}</p>
+                <div className="team-list-contact">
+                  <a href={`mailto:${member.email}`}>{member.email}</a>
+                  {member.phone && <span>·</span>}
+                  {member.phone && <a href={`tel:${member.phone}`}>{member.phone}</a>}
+                </div>
+              </div>
+              <div className="team-list-actions">
+                <button onClick={() => handleEdit(members.indexOf(member))} className="dash-btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                  ✏️ Edit
+                </button>
+                <button onClick={() => handleDelete(members.indexOf(member))} style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="Delete">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
 
 // ========== FINANCE TAB ==========
-function FinanceTab() {
-  const transactions = [
-    { desc: 'Payment - Gulshan Heights', amount: '+৳2,500,000', date: 'May 12, 2026', type: 'credit' },
-    { desc: 'Material Purchase - Steel', amount: '-৳850,000', date: 'May 10, 2026', type: 'debit' },
-    { desc: 'Payment - Banani Tower', amount: '+৳1,800,000', date: 'May 8, 2026', type: 'credit' },
-    { desc: 'Contractor Payment', amount: '-৳650,000', date: 'May 5, 2026', type: 'debit' },
-    { desc: 'Payment - Uttara Commercial', amount: '+৳3,200,000', date: 'May 3, 2026', type: 'credit' },
+function FinanceTab({ showToast }) {
+  const defaultTransactions = [
+    { id: 1, desc: 'Payment - Gulshan Heights', amount: 2500000, date: '2026-05-12', type: 'income', category: 'Project Payment', status: 'completed', reference: 'INV-001' },
+    { id: 2, desc: 'Material Purchase - Steel', amount: 850000, date: '2026-05-10', type: 'expense', category: 'Materials', status: 'completed', reference: 'PO-045' },
+    { id: 3, desc: 'Payment - Banani Tower', amount: 1800000, date: '2026-05-08', type: 'income', category: 'Project Payment', status: 'completed', reference: 'INV-002' },
+    { id: 4, desc: 'Contractor Payment', amount: 650000, date: '2026-05-05', type: 'expense', category: 'Labor', status: 'pending', reference: 'CTR-023' },
+    { id: 5, desc: 'Payment - Uttara Commercial', amount: 3200000, date: '2026-05-03', type: 'income', category: 'Project Payment', status: 'completed', reference: 'INV-003' },
   ];
+
+  const [transactions, setTransactions] = useState(() => {
+    const saved = localStorage.getItem('concord_finance');
+    if (saved) return JSON.parse(saved);
+    return defaultTransactions;
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [viewMode, setViewMode] = useState('table');
+  const [newTransaction, setNewTransaction] = useState({
+    desc: '', amount: '', date: '', type: 'income', category: '', status: 'completed', reference: ''
+  });
+
+  useEffect(() => {
+    localStorage.setItem('concord_finance', JSON.stringify(transactions));
+  }, [transactions]);
+
+  const categories = ['All', ...new Set(transactions.map(t => t.category))];
+
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.desc.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.reference?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'All' || t.type === filterType;
+    const matchesCategory = filterCategory === 'All' || t.category === filterCategory;
+    const matchesStatus = filterStatus === 'All' || t.status === filterStatus;
+    return matchesSearch && matchesType && matchesCategory && matchesStatus;
+  });
+
+  // Calculate statistics
+  const totalIncome = transactions.filter(t => t.type === 'income' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = transactions.filter(t => t.type === 'expense' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0);
+  const netProfit = totalIncome - totalExpenses;
+  const pendingAmount = transactions.filter(t => t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
+
+  const formatCurrency = (amount) => {
+    if (amount >= 1000000) return `৳${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `৳${(amount / 1000).toFixed(0)}K`;
+    return `৳${amount}`;
+  };
+
+  const handleAddTransaction = (e) => {
+    e.preventDefault();
+    const transactionToAdd = {
+      ...newTransaction,
+      id: Date.now(),
+      amount: parseFloat(newTransaction.amount)
+    };
+
+    if (editIndex !== null) {
+      const updatedTransactions = [...transactions];
+      updatedTransactions[editIndex] = { ...transactionToAdd, id: transactions[editIndex].id };
+      setTransactions(updatedTransactions);
+      showToast('Transaction updated successfully!', 'success');
+    } else {
+      setTransactions([transactionToAdd, ...transactions]);
+      showToast('Transaction added successfully!', 'success');
+    }
+
+    setShowForm(false);
+    setEditIndex(null);
+    setNewTransaction({ desc: '', amount: '', date: '', type: 'income', category: '', status: 'completed', reference: '' });
+  };
+
+  const handleEdit = (index) => {
+    const transactionToEdit = transactions[index];
+    setNewTransaction({
+      desc: transactionToEdit.desc,
+      amount: transactionToEdit.amount.toString(),
+      date: transactionToEdit.date,
+      type: transactionToEdit.type,
+      category: transactionToEdit.category,
+      status: transactionToEdit.status,
+      reference: transactionToEdit.reference || ''
+    });
+    setEditIndex(index);
+    setShowForm(true);
+  };
+
+  const handleDelete = (index) => {
+    if (window.confirm(`Are you sure you want to delete this transaction?`)) {
+      const updatedTransactions = transactions.filter((_, i) => i !== index);
+      setTransactions(updatedTransactions);
+      showToast('Transaction deleted successfully', 'success');
+    }
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Description', 'Amount', 'Type', 'Category', 'Date', 'Status', 'Reference'];
+    const rows = filteredTransactions.map(t => [
+      t.desc,
+      t.type === 'income' ? t.amount : -t.amount,
+      t.type,
+      t.category,
+      t.date,
+      t.status,
+      t.reference || ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finance_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Financial data exported successfully!', 'success');
+  };
+
+  const getCategoryIcon = (category) => {
+    const icons = {
+      'Project Payment': '🏗️',
+      'Materials': '🧱',
+      'Labor': '👷',
+      'Utilities': '⚡',
+      'Office': '🏢',
+      'Marketing': '📢',
+      'Legal': '⚖️',
+      'Insurance': '🛡️',
+      'Tax': '📋',
+      'Other': '📦'
+    };
+    return icons[category] || '💰';
+  };
+
+  const generateInvoiceNumber = () => {
+    const prefix = 'INV';
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const count = transactions.filter(t => t.type === 'income').length + 1;
+    return `${prefix}-${year}${month}-${count.toString().padStart(4, '0')}`;
+  };
+
+  const handleGenerateInvoice = (transaction) => {
+    if (transaction.type !== 'income') {
+      showToast('Invoices can only be generated for income transactions', 'error');
+      return;
+    }
+
+    const invoiceNumber = transaction.reference || generateInvoiceNumber();
+
+    // Generate professional PDF invoice
+    const doc = new jsPDF();
+
+    // Concord Logo (base64)
+    const logoSvgBase64 = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMy4wLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxOTcuMyA4My4zIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxOTcuMyA4My4zOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDp1cmwoI1NWR0lEXzFfKTt9DQoJLnN0MXtmaWxsOnVybCgjU1ZHSURfMl8pO30NCgkuc3Qye2ZpbGw6dXJsKCNTVkRJRF8zXyk7fQ0KPC9zdHlsZT4NCjxnPg0KCTxsaW5lYXJHcmFkaWVudCBpZD0iU1ZHSURfMV8iIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4MT0iOTguNjQ4OSIgeTE9IjUuODUyNSIgeDI9Ijk4LjY0ODkiIHkyPSI4MS4zMzE2Ij4NCgkJPHN0b3AgIG9mZnNldD0iMCIgc3R5bGU9InN0b3AtY29sb3I6IzAwNkVCOSIvPg0KCQk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojMkUzMTkyIi8+DQoJPC9saW5lYXJHcmFkaWVudD4NCgk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTYuMyw1N2MxLjMsMCwyLjUsMC4xLDMuNiwwLjVjMS4xLDAuMywyLDAuNywyLjYsMS4yYzAuNywwLjUsMSwwLjgsMSwxYzAuMSwwLjIsMC4yLDEuMywwLjIsMy40aDEuNw0KCQljMC4xLTEuNywwLjItMy4xLDAuNC00LjJjMC4xLTAuNywwLjMtMS40LDAuNS0yLjFMLTIuMS0wLjNjLTEuNi0wLjYtMy4zLTEtNS0xLjNjLTEuNy0wLjMtMy4zLTAuNS01LTAuNWMtNS4xLDAtOS4xLDEuMy0xMiwzLjkNCgkJQzEuNCw2MS4zLDAsNjQuNiwwLDY4LjdjMCwyLjgsMC42LDUuNCwxLjksNy42YzEuMywyLjIsMy4xLDMuOSw1LjUsNS4xYzIuNCwxLjIsNS4zLDEuOCw4LjcsMS44YzEuOCwwLDMuNS0wLjEsNC45LTAuNQ0KCQljMS40LTAuMywyLjktMC45LDQuNC0xLjdjMC4zLTAuNiwwLjYtMS4zLDAuOS0ybC0wLjUtMC41Yy0xLjUsMC44LTIuOCwxLjItNCwxLjVjLTEuMiwwLjMtMi41LDAuNC0zLjksMC40Yy0zLjYsMC02LjQtMS4xLTguNS0zLjINCgkJYy0yLjMtMi40LTMuNC01LjQtMy40LTkuMmMwLTMuNSwwLjktNi4yLDIuOC04LjFDMTAuNyw1OCwxMy4yLDU3LDE2LjMsNTd6IE01MCw1OWMtMS45LTEtNC40LTEuNS03LjQtMS41Yy0zLjEsMC01LjcsMC41LTcuNywxLjYNCgkJYy0yLDEtMy41LDIuNS00LjcsNC40Yy0xLjEsMS45LTEuNyw0LjMtMS43LDdjMCwzLjksMS4yLDcsMy41LDkuM2MyLjMsMi4zLDUuNywzLjQsMTAsMy40YzIuOSwwLDUuNC0wLjYsNy40LTEuNw0KCQljMi0xLjEsMy42LTIuNyw0LjgtNC43YzEuMS0yLDEuNy00LjQsMS43LTcuMmMwLTIuNS0wLjUtNC43LTEuNi02LjVDNTMuMyw2MS40LDUxLjgsNjAsNTAsNTl6IE00OC4zLDc4LjYNCgkJYy0xLjQsMS44LTMuMywyLjctNS43LDIuN2MtMS45LDAtMy40LS40LTQuNy0xLjJjLTEuMi0wLjgtMi4xLTItMi45LTMuOGMtMC44LTEuOC0xLjItMy45LTEuMi02LjVjMC0zLjUsMC43LTYuMSwyLjEtNy45DQoJCQljMS40LTEuNywzLjQtMi41LDUuOS0yLjVjMi43LDAsNC43LC44LDYuMSwyLjVjMS42LDIsMi40LDQuOSwyLjQsOC43QzUwLjUsNzQuMiw0OS44LDc2LjksNDguMyw3OC42eiBNNzcuNSw1Ny45djEuNQ0KCQljMS40LDAuMSwyLjMsMC4yLDIuNSwwLjJjMC4yLDAsMC4zLDAuMiwwLjQsMC4zYzAuMSwwLjIsMC4yLDEsMC4zLDIuMWMwLDIsMCw0LjMsMCw3djdjLTEuNy0xLjgtMy43LTQtNi02LjgNCgkJYy0zLjUtNC4xLTYuNi03LjktOS4zLTExLjRjLTEuMywwLjEtMi40LDAuMS0zLjQsMC4xYy0wLjksMC0yLjMsMC00LjEtMC4xdjEuNWMxLjUsMC4xLDIuNCwwLjMsMi42LDAuNGMwLjIsMC4xLDAuMywwLjIsMC40LDAuNA0KCQljMC4xLDAuMywwLjIsMS41LDAuMiwzLjVsMCw3LjZjMCwxLjQsMCwzLjYtLjEsNi41YzAsMS43LTAuMSwyLjctMC4yLDNjLTAuMSwwLjItMC4yLDAuMy0wLjQsMC40Yy0wLjIsMC4yLTEuMSwwLjMtMi41LDAuM3YxLjUNCgkJCWMyLjItMC4xLDMuNy0wLjEsNC40LTAuMWMwLjgsMCwyLjIsMC4xLDQuMSwwLjF2LTEuNWMtMS41LTAuMS0yLjQtMC4yLTIuNi0wLjRjLTAuMi0wLjEtMC4yLTAuMS0wLjMtMC4zYy0wLjEtMC4zLTAuMi0xLjQtMC4zLTMuNA0KCQkJYzAtMi43LS4xLTUtLjEtNi45di02LjljMS4zLDEuOCwzLjEsMy45LDUuMyw2LjZjNC4zLDUuMSw4LDkuMywxMS4xLDEyLjdjMC42LDAuMSwxLjUsMC4zLDIuOSwwLjVsMC4yLTAuMg0KCQljLTAuMS0xLjktMC4xLTMuOS0wLjEtNS44bDAtNy4ybDAtNy4xYzAtMS41LDAuMS0yLjUsMC4yLTIuN2MwLTAuMiwwLjEtMC4zLDAuMi0wLjRjMC4xLTAuMSwwLjItMC4yLDAuNC0wLjINCgkJCWMwLjMtMC4xLDEuMS0uMiwyLjQtMC4zdjEuNQ0KCQlDOC41LDU3LjksODMsNTgsODEuMyw1OGMwLC0wLjgtMC4yLTEuNi0wLjQtMi40Yy0wLjEtMC4zLTAuMi0xLjQtMC4zLTMuNA0KCQkJYzAtMi43LTAuMS01LS4xLTYuOXYtNi45YzEuMywxLjgsMy4xLDMuOSw1LjMsNi42YzQuMyw1LjEsOCw5LjMsMTEuMSwxMi43YzAuNiwwLjEsMS41LDAuMywyLjksMC41bDAuMi0wLjINCgkJCWMtMC4xLTEuOS0wLjEtMy45LTAuMS01LjgwbDAtNy4ybDAtNy4xYzAtMS41LDAuMS0yLjUsMC4yLTIuN2MwLTAuMiwwLjEtMC4zLDAuMi0wLjRjMC4xLTAuMSwwLjItMC4yLDAuNC0wLjINCgkJCWMwLjMtMC4xLDEuMS0uMiwyLjQtMC4zdi0xLjVDMTg0LjUsNTcuOSwxODMsNTgsMTgxLjMsNTh6IE0xMDIuNyw1OS42YzEuMiwwLDIuMywwLjIsMy4zLDAuNA0KCQljMSwwLjMsMS43LDAuNywyLjMsMS4xYzAuNiwwLjQsMC45LDAuNywxLDAuOWMwLjEsMC4yLDAuMSwxLjIsMC4yLDMuMWgxLjVjMC4xLTEuNSwwLjItMi43LDAuNC0zLjhjMC4xLTAuNiwwLjItMS4yLDAuNC0xLg0KCQlsLTAuMS0wLjNjLTEuNS0wLjYtMi45LTEtNC41LTEuMmMtMS41LTAuMy0zLTAuNC00LjUtMC40Yy00LjYsMC04LjIsMS4yLTEwLjgsMy41Yy0yLjYsMi40LTMuOSw1LjQtMy45LDkuMWMwLDIuNSwwLjYsNC44LDEuNyw2LjgNCgkJYzEuMSwxLjksMi44LDMuNSw0LjksNC42YzIuMiwxLjEsNC44LDEuNiw3LjksMS42YzEuNiwwLDMuMS0wLjEsNC40LTAuNWMxLjMtMC4zLDIuNi0uOCw0LTEuNmMwLjItMC42LDAuNS0xLjIsMC44LTEuOGwtMC40LS40DQoJCQljLTEuMywwLjctMi41LDEuMS0zLjYsMS40Yy0xLjEsMC4zLTIuMywwLjQtMy41LDAuNGMtMy4zLDAtNS44LTEtNy42LTIuOWMtMi0yLjEtMy00LjktMy04LjJjMC0zLjEsMC45LTUuNiwyLjUtNy4zDQoJCQlDOTcuNiw2MC41LDk5LjksNTkuNiwxMDIuNyw1OS42eiBNNTM1LjMsNTljLTEuOS00LjQtMS41LTcuNC0xLjVjLTMuMSwwLTUuNywwLjUtNy43LDEuNg0KCQljLTIsMS0zLjUsMi41LTQuNyw0LjRjLTEuMSwxLjktMS43LDQuMy0xLjcsN2MwLDMuOSwxLjIsNywzLjUsOS4zYzIuMywyLjMsNS42LDMuNCwxMCwzLjRjMi45LDAsNS4zLTAuNiw3LjQtMS43DQoJCQljMi4xLTEuMSwzLjctMi43LDQuOC00LjdjMS4xLTIsMS43LTQuNCwxLjctNy4yYzAtMi41LTAuNS00LjctMS42LTYuNQ0KCQkJQzEzOC43LDYxLjQsMTM3LjIsNjAsMTM1LjMsNTl6IE0xMzMuNyw3OC42Yy0xLjQsMS44LTMuMywyLjctNS43LDIuN2MtMS45LDAtMy41LTAuNC00LjctMS4yDQoJCQljLTEuMi0wLjgtMi4yLTItMi45LTMuOGMtMC44LTEuOC0xLjItMy45LTEuMi02LjVjMC0zLjUsMC43LTYuMSwyLjEtNy45DQoJCQljMS40LTEuNywzLjQtMi41LDUuOS0yLjVjMi43LDAsNC44LC44LDYuMSwyLjVjMS42LDIsMi40LDQuOSwyLjQsOC43DQoJCQlDMTM1LjgsNzQuMiwxMzUuMSw3Ni45LDEzMy43LDc4LjZ6IE0xNjUuMSw3OS44bC0yLjktNC40bC0zLjctNS43DQoJCWMyLTAuOCwzLjQtMS44LDQuMi0yLjljMC44LTEuMSwxLjItMi4zLDEuMi0zLjdjMC0xLjEtMC4yLTIuMS0wLjgtMi45Yy0wLjUtMC44LTEuMi0xLjQtMi4xLTEuOA0KCQkJYy0wLjktMC40LTIuMy0wLjYtNC4yLTAuNkwxNDgsNThjMC0wLjctMC0yLjMtMC00LjdsMC0wLjEgYzAtMC4xLDAuMS0wLjIsMC4xLTAuM2MwLjEsMCwwLjIsMCwwLjMsMA0KCQkJYzAsMCwwLjEsMCwwLjItMC4xYzAuMiwwLjEsMCwwLjIsMCwwLjNjMC4xLDAsMC4yLDAsMC4zLTAuMWMwLjEtMC4xLDAuMS0wLjEsMC4yLTAuMg0KCQkJYzAuMiwwLjEsMC4xLDAuMiwwLjEsMC4zYzAuMiwwLjUsMC4zLDEuOSwwLjMsNC4yYzAsMywwLjEsNS42LDAuMSw3LjUNCgkJCWMwLDEuNCwwLDMuNS0wLjEsNmMwLDEuNi0wLjEsMi42LTAuMiwzYzAsMS42LTAuMSwyLjYtMC4yLDIuOWMtMC4xLDAuMi0wLjIsMC4zLTAuMywwLjMjLTAuMiwwLjEtMSwwLjItMi4zLDAuM3YxLjUNCgkJCWMyLTAuMSwzLjgtMC4xLDUuNi0wLjFjMS42LDAsMy41LDAuMSw1LjYsMC4xdi0xLjVjLTEuMy0wLjEtMi4xLTAuMi0yLjQtMC4zYy0wLjItMC4xLTAuMy0wLjItMC40LTAuNGMtMC4xLTAuMi0wLjItMS4yLTAuMy0zDQoJCQljLTAuMS0yLjMtMC4yLTQuMy0wLjItNS44bDAuMS02LjZsMC4xLTUuM2MwLTAuMSwxLjctMC4xLDIuMi0wLjFjMS43LDAsMi45LDAuNCwzLjgsMS4yYzAuOCwwLjgsMS4zLDEuOSwxLjMsMy40DQoJCQljMCwxLjYtMC41LDIuOS0xLjYsMy44Yy0xLjEsMC45LTIuMSwxLjQtMy4yLDEuNGMtMC4yLDAtMC42LDAtMS0wLjFjLTAuMSwwLjItMC4xLTAuNC0wLjIsMC42bDMuNiw1LjUNCgkJCQljMi4xLDMuMSwzLjYsNS41LDQuNiw3LjJjMC45LDAsMi44LTAuMSw1LjgtMC4xDQoJCQlsMSwwdi0xLjNjLTAuNiwwLTEuMS0wLjEtMS40LTAuMk0KMTY2LDgwLjksMTY1LjYsODAuNSwxNjUuMSw3OS44eiBNNTk1LjgsNjIuOGMtMS0xLjctMi4zLTIuOS0zLjktMy43DQoJCQljLTEuNi0wLjgtNC4xLTEuMi03LjMtMS4ybC04LjgsMC4xYy0yLjMsMC00LjQsMC02LjEtMC4xdjEuNWMxLjUsMC4yLDIuNCwwLjMsMi42LDAuNA0KCQkJYzAuMSwwLjEsMC4yLDAuMSwwLjIsMC4zYzAuMSwwLjIsMC4yLDEuMiwwLjIsMi45DQoJCQljMC4xLDEuNiwwLjEsMy43LDAuMSw2LjJjMCw1LjctMC4xLDkuNi0wLjMsMTEuN2MtMC4zLDAuMi0wLjksMC42LTEuOCwxLjF2MC45YzIuMi0wLjEsMy44LTAuMSw0LjgtMC4xDQoJCQlsNi44LDAuMWMyLjUsMCw0LjgtMC40LDctMS40YzIuMi0uOSw0LjEtMi41LDUuNi00LjdjMS41LTIuMiwyLjMtNC44LDIuMy03LjlDMTk3LjMsNjYuNCwxOTYuOCw2NC40LDE5NS44LDYyLjh6IE0xOTAuNiw3Ng0KCQkJYy0wLjksMS43LTIsMi45LTMuNCwzLjdjLTEuNCwwLjctMy40LDEuMS02LjEsMS4xYy0xLDAtMi0wLjEtMy4xLTAuMmMtMC4xLTEuNy0wLjEtNC45LTAuMS05LjVsMC4xLTExDQoJCQljMS44LTAuMSwzLjEtMC4yLDMuOC0wLjJjMy40LDAsNS45LC44LDcuNCwyLjNjMS43LDEuNywyLjYsNC4yLDIuNiw3LjUNCgkJCVBOTE4OS41LDcyLjIsMTkxLjQsNzQuMywxOTAuNiw3NnoiLz4NCgk8Zz4NCgkJPGxpbmVhckdyYWRpZW50IGlkPSJTVkdJRF8yXyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSI3Ny42MDE2IiB5MT0iMC4zNjY4IiB4Mj0iNzcuNjAxNiIgeTI9Ijg0Ljc2NyI+DQoJCQk8c3RvcCAgb2Zmc2V0PSIwIiBzdHlsZT0ic3RvcC1jb2xvcjojMDA2RUI5Ii8+DQoJCQk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojMkUzMTkyIi8+DQoJCTwvbGluZWFyR3JhZGllbnQ+DQoJCTxwYXRoIGNsYXNzPSJzdDEiIGQ9Ik04MC4yLDI2LjFjMC02LjYsNS40LTEyLDEyLTEyYzIuNCwwLDQuNiwwLjcsNi40LDEuOWwtMTYtMTZMNTYuNiwyNi4xbDI2LjEsMjYuMWwxNi0xNg0KCQkJCWMtMS45LDEuMi00LjEsMS45LTYuNCwxLjlDODUuNiwzOC4yLDgwLjIsMzIuOCw4MC4yLDI2LjF6Ii8+DQoJCQk8bGluZWFyR3JhZGllbnQgaWQ9IlNWR0lEXzNfIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjExOS42OTU4IiB5MT0iMC4zNjY4IiB4Mj0iMTE5LjY5NTgiIHkyPSI4NC43NjciPg0KCQkJPHN0b3AgIG9mZnNldD0iMCIgc3R5bGU9InN0b3AtY29sb3I6IzAwNkVCOSIvPg0KCQkJPHN0b3AgIG9mZnNldD0iMSIgc3R5bGU9InN0b3AtY29sb3I6IzJFMzE5MiIvPg0KCQk8L2xpbmVhckdyYWRpZW50Pg0KCQk8cGF0aCBjbGFzcz0ic3QyIiBkPSJNMTIyLjMsMjYuMWMwLTYuNiw1LjQtMTIsMTItMTJjMi40LDAsNC42LDAuNyw2LjQsMS45bC0xNi0xNkw5OC42LDI2LjFsMjYuMSwyNi4xbDE2LTE2DQoJCQkJYy0xLjksMS4yLTQuMSwxLjktNi40LDEuOUMxMjcuNywzOC4yLDEyMi4zLDMyLjgsMTIyLjMsMjYuMXoiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==";
+
+    const img = new Image();
+    img.src = `data:image/svg+xml;base64,${logoSvgBase64}`;
+
+    img.onload = () => {
+      // Draw SVG to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = (img.height / img.width) * 800;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pngDataUrl = canvas.toDataURL('image/png');
+
+      // Header Background
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, 210, 40, 'F');
+
+      // Logo
+      doc.addImage(pngDataUrl, 'PNG', 15, 8, 45, (canvas.height / canvas.width) * 45);
+
+      // Invoice Title
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.text("INVOICE", 195, 25, null, null, "right");
+
+      // Get user info for billing
+      const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userName = savedUser.fullName || [savedUser.firstName, savedUser.lastName].filter(Boolean).join(' ') || 'Valued Client';
+
+      // Invoice Details
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Invoice Number:", 15, 55);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(invoiceNumber, 195, 55, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date of Issue:", 15, 62);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(new Date(transaction.date).toLocaleDateString(), 195, 62, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "bold");
+      doc.text("Due Date:", 15, 69);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(15, 23, 42);
+      const dueDate = new Date(transaction.date);
+      dueDate.setDate(dueDate.getDate() + 30);
+      doc.text(dueDate.toLocaleDateString(), 195, 69, null, null, "right");
+
+      // Bill To Section
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("BILL TO:", 15, 85);
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.text("Concord Real Estate Ltd.", 15, 93);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text("Dhaka, Bangladesh", 15, 100);
+      doc.text("Phone: +880 2 55012345", 15, 105);
+      doc.text("Email: info@concordrealestatebd.com", 15, 110);
+
+      // Divider Line
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(15, 120, 195, 120);
+
+      // Invoice Details Section
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Invoice Details", 15, 135);
+
+      // Table Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, 145, 180, 10, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("DESCRIPTION", 20, 152);
+      doc.text("CATEGORY", 100, 152);
+      doc.text("AMOUNT", 190, 152, null, null, "right");
+
+      // Table Row
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(transaction.desc, 20, 165);
+      doc.text(transaction.category, 100, 165);
+      doc.text(formatCurrency(transaction.amount), 190, 165, null, null, "right");
+
+      // Table Bottom Line
+      doc.setDrawColor(226, 232, 240);
+      doc.line(15, 175, 195, 175);
+
+      // Totals Section
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Subtotal:", 150, 185);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatCurrency(transaction.amount), 190, 185, null, null, "right");
+
+      doc.setTextColor(100, 116, 139);
+      doc.text("Tax (0%):", 150, 192);
+      doc.setTextColor(15, 23, 42);
+      doc.text("0.00", 190, 192, null, null, "right");
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(145, 197, 195, 197);
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("Total:", 150, 205);
+      doc.text(formatCurrency(transaction.amount), 190, 205, null, null, "right");
+
+      // Terms & Conditions
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "normal");
+      doc.text("Terms & Conditions:", 15, 225);
+      doc.setFontSize(9);
+      doc.text("1. Payment is due within 30 days of the invoice date.", 15, 232);
+      doc.text("2. Please include the invoice number on your payment.", 15, 238);
+      doc.text("3. For any queries, contact our finance department.", 15, 244);
+
+      // Footer
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, 265, 210, 30, 'F');
+
+      doc.addImage(pngDataUrl, 'PNG', 15, 270, 25, (canvas.height / canvas.width) * 25);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text("Concord Real Estate Ltd. | Building Dreams, Delivering Excellence", 45, 277);
+      doc.text("Phone: +880 2 55012345 | Email: info@concordrealestatebd.com", 45, 283);
+      doc.text("Website: www.concordrealestatebd.com", 45, 289);
+
+      // Generate filename
+      const filename = `${invoiceNumber}_${transaction.desc.replace(/\s+/g, '_').replace(/[^\w\s-]/g, '')}.pdf`;
+
+      // Show download progress
+      showToast(`Generating invoice ${invoiceNumber}...`, 'info');
+
+      // Small delay to ensure UI updates before download
+      setTimeout(() => {
+        try {
+          // Save PDF - this triggers the download
+          doc.save(filename);
+
+          // Update transaction with invoice number if not set
+          if (!transaction.reference) {
+            const updatedTransactions = transactions.map(t =>
+              t.id === transaction.id ? { ...t, reference: invoiceNumber, invoiceGenerated: true, invoiceDate: new Date().toISOString() } : t
+            );
+            setTransactions(updatedTransactions);
+          }
+
+          showToast(`Invoice ${invoiceNumber} downloaded successfully!`, 'success');
+        } catch (error) {
+          console.error('Invoice generation failed:', error);
+          showToast('Failed to generate invoice. Please try again.', 'error');
+        }
+      }, 500);
+    };
+
+    img.onerror = () => {
+      showToast("Failed to load logo for invoice. Please try again.", 'error');
+    };
+  };
+
+  const handleDownloadInvoice = (transaction) => {
+    if (!transaction.reference || !transaction.reference.startsWith('INV-')) {
+      showToast('No invoice generated for this transaction yet.', 'error');
+      return;
+    }
+
+    // Re-generate and download the invoice
+    handleGenerateInvoice(transaction);
+  };
+
+  const handlePreviewInvoice = (transaction) => {
+    if (transaction.type !== 'income') {
+      showToast('Invoice preview is only available for income transactions', 'error');
+      return;
+    }
+
+    const invoiceNumber = transaction.reference || generateInvoiceNumber();
+
+    // Show preview modal with invoice details
+    const previewContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+        <div style="background: linear-gradient(135deg, #006EB9, #2E3192); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin-bottom: 20px;">
+          <h1 style="margin: 0; text-align: right; font-size: 28px;">INVOICE</h1>
+          <p style="margin: 5px 0 0 0; text-align: right; opacity: 0.9;">${invoiceNumber}</p>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <div>
+            <h3 style="margin: 0 0 10px 0; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Bill To</h3>
+            <h4 style="margin: 0 0 5px 0; color: #0f172a;">Concord Real Estate Ltd.</h4>
+            <p style="margin: 0; color: #475569; font-size: 14px;">Dhaka, Bangladesh</p>
+            <p style="margin: 0; color: #475569; font-size: 14px;">Phone: +880 2 55012345</p>
+            <p style="margin: 0; color: #475569; font-size: 14px;">Email: info@concordrealestatebd.com</p>
+          </div>
+
+          <div style="text-align: right;">
+            <div style="margin-bottom: 10px;">
+              <span style="color: #64748b; font-size: 12px; text-transform: uppercase;">Invoice Number:</span>
+              <span style="color: #0f172a; font-weight: 600; margin-left: 10px;">${invoiceNumber}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <span style="color: #64748b; font-size: 12px; text-transform: uppercase;">Date:</span>
+              <span style="color: #0f172a; font-weight: 600; margin-left: 10px;">${new Date(transaction.date).toLocaleDateString()}</span>
+            </div>
+            <div>
+              <span style="color: #64748b; font-size: 12px; text-transform: uppercase;">Due Date:</span>
+              <span style="color: #0f172a; font-weight: 600; margin-left: 10px;">${new Date(transaction.date).getDate() + 30}/${new Date(transaction.date).getMonth() + 1}/${new Date(transaction.date).getFullYear()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: #f1f5f9;">
+              <tr>
+                <th style="padding: 15px; text-align: left; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Description</th>
+                <th style="padding: 15px; text-align: left; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Category</th>
+                <th style="padding: 15px; text-align: right; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 15px; color: #0f172a;">${transaction.desc}</td>
+                <td style="padding: 15px; color: #64748b;">${transaction.category}</td>
+                <td style="padding: 15px; text-align: right; color: ${transaction.type === 'income' ? '#10b981' : '#ef4444'}; font-weight: 600;">${formatCurrency(transaction.amount)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+          <div style="width: 300px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-size: 14px;">Subtotal:</span>
+              <span style="color: #0f172a; font-weight: 600;">${formatCurrency(transaction.amount)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-size: 14px;">Tax (0%):</span>
+              <span style="color: #0f172a; font-weight: 600;">0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 15px 0; background: #f8fafc; border-radius: 6px; margin-top: 10px;">
+              <span style="color: #0f172a; font-weight: 700; font-size: 16px;">Total:</span>
+              <span style="color: ${transaction.type === 'income' ? '#10b981' : '#ef4444'}; font-weight: 700; font-size: 18px;">${formatCurrency(transaction.amount)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h4 style="margin: 0 0 15px 0; color: #64748b; font-size: 14px;">Terms & Conditions</h4>
+          <ol style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.6;">
+            <li style="margin-bottom: 8px;">Payment is due within 30 days of the invoice date.</li>
+            <li style="margin-bottom: 8px;">Please include the invoice number on your payment.</li>
+            <li>For any queries, contact our finance department.</li>
+          </ol>
+        </div>
+
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+          <p style="margin: 0; color: #64748b; font-size: 12px;">Concord Real Estate Ltd. | Building Dreams, Delivering Excellence</p>
+          <p style="margin: 5px 0 0 0; color: #64748b; font-size: 11px;">Phone: +880 2 55012345 | Email: info@concordrealestatebd.com | Website: www.concordrealestatebd.com</p>
+        </div>
+      </div>
+    `;
+
+    // Create modal preview
+    const modalHtml = `
+      <div id="invoice-preview-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px;">
+        <div style="background: #0f1724; border-radius: 20px; max-width: 900px; width: 100%; max-height: 90vh; overflow: hidden; position: relative; animation: fadeUp 0.4s ease-out;">
+          <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: white; font-size: 18px;">📄 Invoice Preview - ${invoiceNumber}</h3>
+            <button onclick="document.getElementById('invoice-preview-modal').remove()" style="background: rgba(255,255,255,0.1); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; transition: background 0.2s;">✕</button>
+          </div>
+          <div style="max-height: calc(90vh - 80px); overflow-y: auto; padding: 0;">
+            ${previewContent}
+          </div>
+          <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: flex-end; background: rgba(0,0,0,0.2);">
+            <button onclick="document.getElementById('invoice-preview-modal').remove()" style="padding: 12px 24px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: white; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: 'Poppins', sans-serif;">Close</button>
+            <button onclick="window.handleGenerateAndDownload(${transactions.indexOf(transaction)})" style="padding: 12px 24px; border: none; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: 'Poppins', sans-serif;">📥 Download PDF</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to DOM
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHtml;
+    document.body.appendChild(modalContainer);
+
+    // Make the function globally available for the modal button
+    window.handleGenerateAndDownload = (index) => {
+      document.getElementById('invoice-preview-modal').remove();
+      handleGenerateInvoice(transactions[index]);
+    };
+
+    // Close modal on background click
+    modalContainer.querySelector('#invoice-preview-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'invoice-preview-modal') {
+        modalContainer.remove();
+      }
+    });
+  };
 
   return (
     <>
-      <div className="dash-page-header"><h2>💰 Finance</h2></div>
-      <div className="stats-row">
-        <div className="dash-stat-card" style={{ '--stat-color': '#10b981' }}>
-          <div className="dash-stat-icon">📈</div>
-          <div className="dash-stat-info"><span className="dash-stat-value">৳12.5M</span><span className="dash-stat-label">Total Revenue</span><span className="dash-stat-change">+22% vs last month</span></div>
-        </div>
-        <div className="dash-stat-card" style={{ '--stat-color': '#ef4444' }}>
-          <div className="dash-stat-icon">📉</div>
-          <div className="dash-stat-info"><span className="dash-stat-value">৳4.8M</span><span className="dash-stat-label">Total Expenses</span><span className="dash-stat-change" style={{ color: '#ef4444' }}>+5% vs last month</span></div>
-        </div>
-        <div className="dash-stat-card" style={{ '--stat-color': '#3b82f6' }}>
-          <div className="dash-stat-icon">💎</div>
-          <div className="dash-stat-info"><span className="dash-stat-value">৳7.7M</span><span className="dash-stat-label">Net Profit</span><span className="dash-stat-change">+35% growth</span></div>
-        </div>
-        <div className="dash-stat-card" style={{ '--stat-color': '#f59e0b' }}>
-          <div className="dash-stat-icon">⏳</div>
-          <div className="dash-stat-info"><span className="dash-stat-value">৳3.2M</span><span className="dash-stat-label">Pending</span><span className="dash-stat-change">5 invoices</span></div>
+      <div className="dash-page-header">
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          Financial Management
+        </h2>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="dash-btn-outline" onClick={handleExportCSV} title="Export to CSV">📥 Export CSV</button>
+          <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewTransaction({ desc: '', amount: '', date: '', type: 'income', category: '', status: 'completed', reference: '' }); } }}>
+            {showForm ? '✕ Cancel' : '+ Add Transaction'}
+          </button>
         </div>
       </div>
-      <div className="dash-card">
-        <div className="dash-card-header"><h3>Recent Transactions</h3></div>
-        <table className="dash-table">
-          <thead><tr><th>Description</th><th>Amount</th><th>Date</th></tr></thead>
-          <tbody>
-            {transactions.map((t, i) => (
-              <tr key={i}>
-                <td>{t.desc}</td>
-                <td className={t.type === 'credit' ? 'text-green' : 'text-red'}>{t.amount}</td>
-                <td>{t.date}</td>
-              </tr>
+
+      {/* Finance Stats */}
+      <div className="finance-stats">
+        <div className="finance-stat-card income-card">
+          <div className="finance-stat-header">
+            <div className="finance-stat-icon income-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+            </div>
+            <span className="finance-stat-label">Total Revenue</span>
+          </div>
+          <div className="finance-stat-value">{formatCurrency(totalIncome)}</div>
+          <div className="finance-stat-change positive">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+            {transactions.filter(t => t.type === 'income').length} transactions
+          </div>
+        </div>
+
+        <div className="finance-stat-card expense-card">
+          <div className="finance-stat-header">
+            <div className="finance-stat-icon expense-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                <polyline points="17 18 23 18 23 12"></polyline>
+              </svg>
+            </div>
+            <span className="finance-stat-label">Total Expenses</span>
+          </div>
+          <div className="finance-stat-value">{formatCurrency(totalExpenses)}</div>
+          <div className="finance-stat-change negative">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+              <polyline points="17 18 23 18 23 12"></polyline>
+            </svg>
+            {transactions.filter(t => t.type === 'expense').length} transactions
+          </div>
+        </div>
+
+        <div className="finance-stat-card profit-card">
+          <div className="finance-stat-header">
+            <div className="finance-stat-icon profit-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </div>
+            <span className="finance-stat-label">Net Profit</span>
+          </div>
+          <div className={`finance-stat-value ${netProfit >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(netProfit)}</div>
+          <div className={`finance-stat-change ${netProfit >= 0 ? 'positive' : 'negative'}`}>
+            {netProfit >= 0 ? '+' : ''}{((netProfit / (totalIncome || 1)) * 100).toFixed(1)}% margin
+          </div>
+        </div>
+
+        <div className="finance-stat-card pending-card">
+          <div className="finance-stat-header">
+            <div className="finance-stat-icon pending-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <span className="finance-stat-label">Pending</span>
+          </div>
+          <div className="finance-stat-value">{formatCurrency(pendingAmount)}</div>
+          <div className="finance-stat-change">
+            {transactions.filter(t => t.status === 'pending').length} transactions
+          </div>
+        </div>
+      </div>
+
+   
+
+      {/* Controls */}
+      <div className="finance-controls">
+        <div className="finance-search">
+          <span className="finance-search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="finance-search-input"
+          />
+        </div>
+
+        <div className="finance-filters">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="finance-filter-select"
+          >
+            <option value="All">All Types</option>
+            <option value="income">💵 Income</option>
+            <option value="expense">💸 Expenses</option>
+          </select>
+
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="finance-filter-select"
+          >
+            <option value="All">All Categories</option>
+            {categories.filter(c => c !== 'All').map(cat => (
+              <option key={cat} value={cat}>{getCategoryIcon(cat)} {cat}</option>
             ))}
-          </tbody>
-        </table>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="finance-filter-select"
+          >
+            <option value="All">All Status</option>
+            <option value="completed">✅ Completed</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="cancelled">❌ Cancelled</option>
+          </select>
+        </div>
+
+        <div className="finance-view-toggle">
+          <button
+            className={`view-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+            onClick={() => setViewMode('table')}
+            title="Table View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            className={`view-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
+            onClick={() => setViewMode('cards')}
+            title="Card View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+        </div>
       </div>
+
+      {/* Add/Edit Transaction Form */}
+      {showForm && (
+        <div className="dash-card" style={{ marginBottom: '1.5rem', border: '1px solid var(--accent)' }}>
+          <div className="dash-card-header"><h3>{editIndex !== null ? 'Update Transaction' : 'Add New Transaction'}</h3></div>
+          <form onSubmit={handleAddTransaction} className="finance-form" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Description</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    required
+                    value={newTransaction.desc}
+                    onChange={e => setNewTransaction({ ...newTransaction, desc: e.target.value })}
+                    placeholder="e.g., Payment received for Gulshan Heights"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Amount (৳)</label>
+                <div className="input-wrapper">
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={newTransaction.amount}
+                    onChange={e => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                    placeholder="2500000"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Date</label>
+                <div className="input-wrapper">
+                  <input
+                    type="date"
+                    required
+                    value={newTransaction.date}
+                    onChange={e => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Type</label>
+                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                  <select
+                    value={newTransaction.type}
+                    onChange={e => {
+                      const newType = e.target.value;
+                      setNewTransaction({
+                        ...newTransaction,
+                        type: newType,
+                        reference: newType === 'income' && !newTransaction.reference ? generateInvoiceNumber() : newTransaction.reference
+                      });
+                    }}
+                    required
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                  >
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="income">💵 Income</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="expense">💸 Expense</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                  <select
+                    value={newTransaction.category}
+                    onChange={e => setNewTransaction({ ...newTransaction, category: e.target.value })}
+                    required
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                  >
+                    <option style={{ backgroundColor: '#000', color: '#fff' }}value="">Select Category</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Project Payment">🏗️ Project Payment</option>
+                    <option  style={{ backgroundColor: '#000', color:'#fff' }}value="Materials">🧱 Materials</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Labor">👷 Labor</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Utilities">⚡ Utilities</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Office">🏢 Office</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Marketing">📢 Marketing</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Legal">⚖️ Legal</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Insurance">🛡️ Insurance</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Tax">📋 Tax</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="Other">📦 Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Status</label>
+                <div className="input-wrapper" style={{ padding: '0 1rem' }}>
+                  <select
+                    value={newTransaction.status}
+                    onChange={e => setNewTransaction({ ...newTransaction, status: e.target.value })}
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                  >
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="completed">✅ Completed</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="pending">⏳ Pending</option>
+                    <option style={{ backgroundColor: '#000', color: '#fff' }} value="cancelled">❌ Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label>Reference {newTransaction.type === 'income' ? '(Invoice Number)' : '(Optional)'}</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="input-wrapper" style={{ flex: 1 }}>
+                  <input
+                    type="text"
+                    value={newTransaction.reference}
+                    onChange={e => setNewTransaction({ ...newTransaction, reference: e.target.value })}
+                    placeholder={newTransaction.type === 'income' ? 'Auto-generated or custom invoice number' : 'e.g., PO-045'}
+                  />
+                </div>
+                {newTransaction.type === 'income' && (
+                  <button
+                    type="button"
+                    onClick={() => setNewTransaction({ ...newTransaction, reference: generateInvoiceNumber() })}
+                    className="dash-btn-outline"
+                    style={{ padding: '0 1rem', whiteSpace: 'nowrap' }}
+                    title="Generate invoice number"
+                  >
+                    📄 Generate
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <button type="submit" className="dash-btn-primary" style={{ flex: 1 }}>
+                {editIndex !== null ? '💾 Update Transaction' : '➕ Add Transaction'}
+              </button>
+              <button type="button" className="dash-btn-outline" onClick={() => { setShowForm(false); setEditIndex(null); }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Results Count */}
+      <div className="finance-results-count">
+        Showing {filteredTransactions.length} of {transactions.length} transactions
+      </div>
+
+      {/* Transactions Display */}
+      {filteredTransactions.length === 0 ? (
+        <div className="dash-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💰</div>
+          <h3 style={{ marginBottom: '.5rem' }}>No Transactions Found</h3>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {searchTerm || filterType !== 'All' || filterCategory !== 'All' || filterStatus !== 'All'
+              ? 'Try adjusting your filters or search terms.'
+              : 'Add your first transaction to get started!'}
+          </p>
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="dash-card finance-table-card">
+          <div className="dash-card-header"><h3>Recent Transactions</h3></div>
+          <div className="finance-table-wrapper">
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Invoice</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTransactions.map((t, i) => (
+                  <tr key={t.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>{getCategoryIcon(t.category)}</span>
+                        <span style={{ fontWeight: '500' }}>{t.desc}</span>
+                      </div>
+                    </td>
+                    <td><span className="category-badge">{t.category}</span></td>
+                    <td className={t.type === 'income' ? 'text-green' : 'text-red'} style={{ fontWeight: '600' }}>
+                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                    </td>
+                    <td>{new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td>
+                      <span className={`status-badge ${t.status === 'completed' ? 'status-completed' : t.status === 'pending' ? 'status-pending' : 'status-cancelled'}`}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td>
+                      {t.type === 'income' ? (
+                        t.reference && t.reference.startsWith('INV-') ? (
+                          <span className="invoice-badge invoice-generated">📄 {t.reference}</span>
+                        ) : (
+                          <span className="invoice-badge invoice-pending">⏳ No Invoice</span>
+                        )
+                      ) : (
+                        <span className="invoice-badge invoice-na">—</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        {t.type === 'income' && (
+                          <>
+                            {t.reference && t.reference.startsWith('INV-') ? (
+                              <>
+                                <button onClick={() => handlePreviewInvoice(t)} style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', cursor: 'pointer', color: 'var(--primary-light)', padding: '4px', borderRadius: '4px', transition: 'all 0.2s' }} title="Preview Invoice">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-8 11-1-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                  </svg>
+                                </button>
+                                <button onClick={() => handleDownloadInvoice(t)} style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', cursor: 'pointer', color: '#10b981', padding: '4px', borderRadius: '4px', transition: 'all 0.2s' }} title="Download Invoice PDF">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <button onClick={() => handleGenerateInvoice(t)} style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', cursor: 'pointer', color: '#10b981', padding: '4px', borderRadius: '4px', transition: 'all 0.2s' }} title="Generate & Download Invoice">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                  <polyline points="14 2 14 8 20 8"></polyline>
+                                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                                  <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <button onClick={() => handleEdit(transactions.indexOf(t))} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary-light)', padding: '4px' }} title="Edit">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                        <button onClick={() => handleDelete(transactions.indexOf(t))} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }} title="Delete">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="finance-cards">
+          {filteredTransactions.map((t, index) => (
+            <div key={t.id} className="finance-card" style={{ animationDelay: `${index * 0.05}s` }}>
+              <div className={`finance-card-header ${t.type === 'income' ? 'income' : 'expense'}`}>
+                <div className="finance-card-icon">{getCategoryIcon(t.category)}</div>
+                <span className="finance-card-type">{t.type === 'income' ? 'Income' : 'Expense'}</span>
+              </div>
+
+              <div className="finance-card-body">
+                <h3 className="finance-card-desc">{t.desc}</h3>
+                <p className="finance-card-category">{t.category}</p>
+
+                <div className="finance-card-amount" style={{ color: t.type === 'income' ? '#10b981' : '#ef4444' }}>
+                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                </div>
+
+                <div className="finance-card-meta">
+                  <span>📅 {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  <span className={`status-badge ${t.status === 'completed' ? 'status-completed' : t.status === 'pending' ? 'status-pending' : 'status-cancelled'}`}>
+                    {t.status}
+                  </span>
+                </div>
+
+                {t.reference && (
+                  <div className="finance-card-reference">📋 {t.reference}</div>
+                )}
+              </div>
+
+              <div className="finance-card-actions">
+                {t.type === 'income' && (
+                  <>
+                    {t.reference && t.reference.startsWith('INV-') ? (
+                      <>
+                        <button onClick={() => handlePreviewInvoice(t)} className="finance-action-btn finance-action-preview" title="Preview Invoice">
+                          👁️ Preview
+                        </button>
+                        <button onClick={() => handleDownloadInvoice(t)} className="finance-action-btn finance-action-download" title="Download PDF">
+                          📥 Download
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => handleGenerateInvoice(t)} className="finance-action-btn finance-action-invoice" title="Generate & Download Invoice">
+                        📄 Generate Invoice
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => handleEdit(transactions.indexOf(t))} className="finance-action-btn finance-action-edit" title="Edit">
+                  ✏️ Edit
+                </button>
+                <button onClick={() => handleDelete(transactions.indexOf(t))} className="finance-action-btn finance-action-delete" title="Delete">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -1941,8 +3297,8 @@ function Dashboard() {
       case 'overview': return <OverviewTab isOffice={isOffice} />;
       case 'projects': return <ProjectsTab isOffice={isOffice} showToast={showToast} />;
       case 'messages': return <MessagesTab showToast={showToast} />;
-      case 'team': return <TeamTab />;
-      case 'finance': return <FinanceTab />;
+      case 'team': return <TeamTab showToast={showToast} />;
+      case 'finance': return <FinanceTab showToast={showToast} />;
       case 'reports': return <ReportsTab />;
       case 'watchlist': return <WatchlistTab showToast={showToast} />;
       case 'profile': return <ProfileTab user={user} setUser={setUser} showToast={showToast} />;
