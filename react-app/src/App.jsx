@@ -7,6 +7,9 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Properties from './pages/Properties';
+import Blog from './pages/Blog';
+import Team from './pages/Team';
 import './index.css';
 
 function ScrollToTop() {
@@ -66,6 +69,9 @@ function AppContent() {
 
           <nav className="nav-links">
             <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Home</NavLink>
+            <NavLink to="/properties" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Properties</NavLink>
+            <NavLink to="/blog" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Blog</NavLink>
+            <NavLink to="/team" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Team</NavLink>
             <NavLink to="/features" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Features</NavLink>
             <NavLink to="/about" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>About</NavLink>
             <NavLink to="/contact" className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}>Contact</NavLink>
@@ -91,6 +97,9 @@ function AppContent() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/properties" element={<Properties />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/team" element={<Team />} />
           <Route path="/features" element={<Features />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
@@ -134,9 +143,16 @@ function AppContent() {
             <div className="footer-links-grid">
               <div className="footer-col">
                 <h4>Quick Links</h4>
+                <NavLink to="/properties">Properties</NavLink>
                 <NavLink to="/features">Features</NavLink>
                 <NavLink to="/about">About Us</NavLink>
                 <NavLink to="/contact">Contact</NavLink>
+              </div>
+              <div className="footer-col">
+                <h4>Resources</h4>
+                <NavLink to="/blog">Blog</NavLink>
+                <NavLink to="/team">Our Team</NavLink>
+                <NavLink to="/features">Services</NavLink>
               </div>
               <div className="footer-col">
                 <h4>Account</h4>

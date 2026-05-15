@@ -120,7 +120,7 @@ function OverviewTab({ isOffice }) {
 }
 
 // ========== PROJECTS TAB ==========
-function ProjectsTab({ isOffice }) {
+function ProjectsTab({ isOffice, showToast }) {
   const defaultOfficeProjects = [
     { name: 'Gulshan Heights', status: 'In Progress', progress: 72, budget: '৳85M', client: 'Ahmed Group', deadline: 'Dec 2026', color: '#3b82f6' },
     { name: 'Banani Tower', status: 'Planning', progress: 25, budget: '৳120M', client: 'Rahman Corp', deadline: 'Mar 2027', color: '#f59e0b' },
@@ -146,9 +146,54 @@ function ProjectsTab({ isOffice }) {
   }, [projects]);
   const [showForm, setShowForm] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
   const [newProject, setNewProject] = useState({
     name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: ''
   });
+
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.client.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterStatus === 'All' || p.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  const handleExportCSV = () => {
+    const headers = isOffice
+      ? ['Project Name', 'Status', 'Progress', 'Budget', 'Client', 'Deadline']
+      : ['Project Name', 'Status', 'Progress', 'Deadline'];
+    const rows = filteredProjects.map(p =>
+      isOffice
+        ? [p.name, p.status, p.progress, p.budget, p.client, p.deadline]
+        : [p.name, p.status, p.progress, p.deadline]
+    );
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `projects_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Projects exported successfully!', 'success');
+  };
+
+  const handleExportJSON = () => {
+    const jsonContent = JSON.stringify(filteredProjects, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `projects_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Projects exported successfully!', 'success');
+  };
 
   const handleAddProject = (e) => {
     e.preventDefault();
@@ -176,15 +221,15 @@ function ProjectsTab({ isOffice }) {
     setNewProject({ name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: '' });
   };
 
-  const handleEdit = (index) => {
-    setNewProject(projects[index]);
-    setEditIndex(index);
+  const handleEdit = (originalIndex) => {
+    setNewProject(projects[originalIndex]);
+    setEditIndex(originalIndex);
     setShowForm(true);
   };
 
-  const handleDelete = (index) => {
+  const handleDelete = (originalIndex) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
-      const updatedProjects = projects.filter((_, i) => i !== index);
+      const updatedProjects = projects.filter((_, i) => i !== originalIndex);
       setProjects(updatedProjects);
     }
   };
@@ -378,9 +423,42 @@ function ProjectsTab({ isOffice }) {
           </svg>
           {isOffice ? 'All Projects' : 'My Projects'}
         </h2>
-        <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewProject({ name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: '' }); } }}>
-          {showForm ? 'Cancel' : '+ New Project'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="dash-btn-outline" onClick={handleExportCSV} title="Export to CSV">📥 Export CSV</button>
+          <button className="dash-btn-outline" onClick={handleExportJSON} title="Export to JSON">📥 Export JSON</button>
+          <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewProject({ name: '', status: 'Planning', progress: 0, deadline: '', budget: '', client: '' }); } }}>
+            {showForm ? 'Cancel' : '+ New Project'}
+          </button>
+        </div>
+      </div>
+
+      <div className="dash-controls">
+        <div className="dash-search">
+          <span className="dash-search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search projects by name or client..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="dash-search-input"
+          />
+        </div>
+        <div className="dash-filters">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="dash-filter-select"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Planning">Planning</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+        <div className="dash-results-count">
+          Showing {filteredProjects.length} of {projects.length} projects
+        </div>
       </div>
 
       {showForm && (
@@ -459,34 +537,37 @@ function ProjectsTab({ isOffice }) {
             <tr><th>Project</th><th>Status</th><th>Progress</th>{isOffice && <><th>Budget</th><th>Client</th></>}<th>Deadline</th><th>Report</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
           </thead>
           <tbody>
-            {projects.map((p, i) => (
-              <tr key={i}>
-                <td className="td-bold">{p.name}</td>
-                <td><span className="status-pill" style={{ background: `${p.color}22`, color: p.color, borderColor: `${p.color}44` }}>{p.status}</span></td>
-                <td>
-                  <div className="progress-cell">
-                    <div className="mini-progress"><div className="mini-progress-fill" style={{ width: `${p.progress}%`, background: p.color }}></div></div>
-                    <span>{p.progress}%</span>
-                  </div>
-                </td>
-                {isOffice && <><td>{p.budget}</td><td>{p.client}</td></>}
-                <td>{p.deadline}</td>
-                <td>
-                  <button onClick={() => handleDownloadReport(p)} style={{ background: 'rgba(26,86,219,.1)', color: 'var(--primary-light)', border: '1px solid rgba(26,86,219,.2)', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Download
-                  </button>
-                </td>
-                <td style={{ textAlign: 'right', gap: '0.8rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <button onClick={() => handleEdit(i)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary-light)', padding: '4px' }} title="Edit">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                  </button>
-                  <button onClick={() => handleDelete(i)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }} title="Delete">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filteredProjects.map((p) => {
+              const originalIndex = projects.findIndex(proj => proj.name === p.name && proj.deadline === p.deadline);
+              return (
+                <tr key={originalIndex}>
+                  <td className="td-bold">{p.name}</td>
+                  <td><span className="status-pill" style={{ background: `${p.color}22`, color: p.color, borderColor: `${p.color}44` }}>{p.status}</span></td>
+                  <td>
+                    <div className="progress-cell">
+                      <div className="mini-progress"><div className="mini-progress-fill" style={{ width: `${p.progress}%`, background: p.color }}></div></div>
+                      <span>{p.progress}%</span>
+                    </div>
+                  </td>
+                  {isOffice && <><td>{p.budget}</td><td>{p.client}</td></>}
+                  <td>{p.deadline}</td>
+                  <td>
+                    <button onClick={() => handleDownloadReport(p)} style={{ background: 'rgba(26,86,219,.1)', color: 'var(--primary-light)', border: '1px solid rgba(26,86,219,.2)', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Download
+                    </button>
+                  </td>
+                  <td style={{ textAlign: 'right', gap: '0.8rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <button onClick={() => handleEdit(originalIndex)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary-light)', padding: '4px' }} title="Edit">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                    <button onClick={() => handleDelete(originalIndex)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }} title="Delete">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -515,9 +596,48 @@ function MessagesTab({ showToast }) {
   }, [messages]);
   const [showForm, setShowForm] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
   const [newMessage, setNewMessage] = useState({
     from: '', msg: '', time: 'Just now', unread: true
   });
+
+  const filteredMessages = messages.filter(m => {
+    const matchesSearch = m.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.msg.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = !filterUnreadOnly || m.unread;
+    return matchesSearch && matchesFilter;
+  });
+
+  const handleExportCSV = () => {
+    const headers = ['From', 'Message', 'Time', 'Unread'];
+    const rows = filteredMessages.map(m => [m.from, m.msg, m.time, m.unread]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `messages_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Messages exported successfully!', 'success');
+  };
+
+  const handleExportJSON = () => {
+    const jsonContent = JSON.stringify(filteredMessages, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `messages_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Messages exported successfully!', 'success');
+  };
 
   const handleSaveMessage = (e) => {
     e.preventDefault();
@@ -558,9 +678,40 @@ function MessagesTab({ showToast }) {
     <>
       <div className="dash-page-header">
         <h2>💬 Messages</h2>
-        <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewMessage({ from: '', msg: '', time: 'Just now', unread: true }); } }}>
-          {showForm ? 'Cancel' : '+ New Message'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="dash-btn-outline" onClick={handleExportCSV} title="Export to CSV">📥 Export CSV</button>
+          <button className="dash-btn-outline" onClick={handleExportJSON} title="Export to JSON">📥 Export JSON</button>
+          <button className="dash-btn-primary" onClick={() => { setShowForm(!showForm); if (showForm) { setEditIndex(null); setNewMessage({ from: '', msg: '', time: 'Just now', unread: true }); } }}>
+            {showForm ? 'Cancel' : '+ New Message'}
+          </button>
+        </div>
+      </div>
+
+      <div className="dash-controls">
+        <div className="dash-search">
+          <span className="dash-search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search messages by sender or content..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="dash-search-input"
+          />
+        </div>
+        <div className="dash-filters">
+          <label className="dash-filter-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            <input
+              type="checkbox"
+              checked={filterUnreadOnly}
+              onChange={(e) => setFilterUnreadOnly(e.target.checked)}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            Show unread only
+          </label>
+        </div>
+        <div className="dash-results-count">
+          Showing {filteredMessages.length} of {messages.length} messages
+        </div>
       </div>
 
       {showForm && (
@@ -592,18 +743,20 @@ function MessagesTab({ showToast }) {
         </div>
       )}
       <div className="dash-card messages-list">
-        {messages.map((m, i) => (
-          <div key={i} className={`message-item ${m.unread ? 'message-unread' : ''}`}>
-            <div className="message-avatar">{m.avatar}</div>
-            <div className="message-body">
+        {filteredMessages.map((m) => {
+          const originalIndex = messages.findIndex(msg => msg.from === m.from && msg.time === m.time);
+          return (
+            <div key={originalIndex} className={`message-item ${m.unread ? 'message-unread' : ''}`}>
+              <div className="message-avatar">{m.avatar}</div>
+              <div className="message-body">
               <div className="message-top" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <span className="message-from">{m.from}</span>
                 <span className="message-time">{m.time}</span>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={() => handleEdit(i)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary-light)', padding: '2px' }} title="Edit">
+                  <button onClick={() => handleEdit(originalIndex)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary-light)', padding: '2px' }} title="Edit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                   </button>
-                  <button onClick={() => handleDelete(i)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }} title="Delete">
+                  <button onClick={() => handleDelete(originalIndex)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }} title="Delete">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
                 </div>
@@ -612,7 +765,8 @@ function MessagesTab({ showToast }) {
             </div>
             {m.unread && <span className="unread-dot"></span>}
           </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
